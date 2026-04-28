@@ -35,7 +35,7 @@ const shifts = [
     distance: "9 min away",
     urgent: false,
     tags: ["Open Dental", "Phones"],
-  },
+  }
 ];
 
 const candidates = [
