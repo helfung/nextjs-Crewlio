@@ -350,10 +350,7 @@ export default function Page() {
     }
 
     if (authMode === "signup") {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-      });
+      const { data, error } = await supabase.auth.signUp({ email, password });
 
       if (error) {
         alert(error.message);
@@ -385,7 +382,7 @@ export default function Page() {
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-50">
-        <div className="text-sm text-slate-500">Loading Crewlio...</div>
+        <p className="text-sm text-slate-500">Loading Crewlio...</p>
       </main>
     );
   }
@@ -396,19 +393,28 @@ export default function Page() {
         <div className="w-full max-w-md rounded-3xl border border-slate-100 bg-white p-6 shadow-sm">
           <h1 className="text-3xl font-bold">Crewlio</h1>
           <p className="mt-2 text-sm text-slate-500">
-            Sign up or log in to access secure healthcare workforce matching.
+            Secure healthcare workforce matching.
           </p>
 
           <div className="mt-6 flex gap-2">
             <Button
               onClick={() => setAuthMode("signup")}
-              className={authMode === "signup" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}
+              className={
+                authMode === "signup"
+                  ? "bg-teal-700 text-white"
+                  : "border border-slate-200 bg-white"
+              }
             >
               Sign up
             </Button>
+
             <Button
               onClick={() => setAuthMode("login")}
-              className={authMode === "login" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}
+              className={
+                authMode === "login"
+                  ? "bg-teal-700 text-white"
+                  : "border border-slate-200 bg-white"
+              }
             >
               Log in
             </Button>
@@ -430,7 +436,10 @@ export default function Page() {
               onChange={(e) => setPassword(e.target.value)}
             />
 
-            <Button onClick={handleAuth} className="w-full bg-teal-700 py-4 text-white">
+            <Button
+              onClick={handleAuth}
+              className="w-full bg-teal-700 py-4 text-white"
+            >
               {authMode === "signup" ? "Create account" : "Log in"}
             </Button>
           </div>
@@ -445,26 +454,19 @@ export default function Page() {
         <header className="mb-6 flex flex-col gap-4 rounded-3xl border border-white bg-white/90 p-4 shadow-sm md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Crewlio</h1>
-            <p className="text-sm text-slate-500">Secure healthcare workforce matching</p>
+            <p className="text-sm text-slate-500">
+              Secure healthcare workforce matching
+            </p>
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Button
-              onClick={() => setTab("candidate")}
-              className={tab === "candidate" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}
-            >
+            <Button onClick={() => setTab("candidate")} className={tab === "candidate" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}>
               Candidate
             </Button>
-            <Button
-              onClick={() => setTab("clinic")}
-              className={tab === "clinic" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}
-            >
+            <Button onClick={() => setTab("clinic")} className={tab === "clinic" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}>
               Clinic
             </Button>
-            <Button
-              onClick={() => setTab("admin")}
-              className={tab === "admin" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}
-            >
+            <Button onClick={() => setTab("admin")} className={tab === "admin" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}>
               Admin
             </Button>
             <Button onClick={handleLogout} className="border border-slate-200 bg-white">
