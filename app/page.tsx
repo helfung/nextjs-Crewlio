@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type React from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { supabase } from "@/supabaseClient";
 
 type Tab = "candidate" | "clinic" | "admin";
 
