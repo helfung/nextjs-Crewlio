@@ -69,7 +69,7 @@ export default function SignupPage() {
                       : "border-slate-200 text-slate-600"
                   }`}
                 >
-                  🩺 Staff (DA / RN)
+                  🩺 Talent
                 </button>
                 <button
                   onClick={() => setRole("clinic")}
@@ -79,7 +79,7 @@ export default function SignupPage() {
                       : "border-slate-200 text-slate-600"
                   }`}
                 >
-                  🏥 Clinic
+                  🏥 Employer
                 </button>
               </div>
             </div>
