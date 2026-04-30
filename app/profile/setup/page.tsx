@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 
 const QUALIFICATIONS = [
   "Cert III DA", "Cert IV DA", "OHT", "RN", "Enrolled Nurse", "Receptionist",
-  "Bachelor of Oral Health", "Dental Therapist", "Dental Prosthetist",
+  "Bachelor of Oral Health", "Dental Therapist", "Dental Prosthetist", "Other",
 ];
 
 const SKILLS = [
@@ -14,22 +14,61 @@ const SKILLS = [
   "Steri", "Receptionist", "Clinical Team Leader", "Practice Manager",
   "Front Office Coordinator", "Implants", "Endo", "GA", "SND", "Oral Surgery",
   "Oral Med", "Oral Path", "Radiology", "Dental Sleep Medicine",
-  "Functional Dentistry", "Cosmetic Dentistry",
+  "Functional Dentistry", "Cosmetic Dentistry", "Other",
 ];
 
 const SOFTWARE = [
   "D4W", "Praktika", "Ultimo", "Exact", "Core Practice",
-  "Dentally", "CareStack", "Principle",
+  "Dentally", "CareStack", "Principle", "Other",
 ];
 
 const CERTIFICATES = [
   "Cert III", "Cert IV", "Radiation Licence", "Blue Card", "CPR",
-  "First Aid", "Drivers Licence", "Immunisations",
-  "Hospital Accreditation", "Orofacial Myology",
-  "Sedation & GA Support Training", "Infection Control Certification",
+  "First Aid", "Drivers Licence", "Immunisations", "Hospital Accreditation",
+  "AHPRA Registration", "Orofacial Myology", "Sedation & GA Support Training",
+  "Infection Control Certification", "Other",
 ];
 
 const AVAILABILITY = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+function ToggleGroup({ title, items, selected, setSelected, otherValue, setOtherValue }: {
+  title: string;
+  items: string[];
+  selected: string[];
+  setSelected: (v: string[]) => void;
+  otherValue?: string;
+  setOtherValue?: (v: string) => void;
+}) {
+  function toggle(item: string) {
+    setSelected(selected.includes(item) ? selected.filter(i => i !== item) : [...selected, item]);
+  }
+  return (
+    <div>
+      <label className="text-sm font-medium text-slate-700">{title}</label>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {items.map((item) => (
+          <button
+            key={item}
+            onClick={() => toggle(item)}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+              selected.includes(item) ? "bg-teal-700 text-white" : "bg-slate-100 text-slate-700"
+            }`}
+          >
+            {item}
+          </button>
+        ))}
+      </div>
+      {selected.includes("Other") && setOtherValue !== undefined && (
+        <input
+          className="mt-3 w-full rounded-2xl border border-slate-200 p-3 text-sm"
+          placeholder="Please specify..."
+          value={otherValue || ""}
+          onChange={(e) => setOtherValue(e.target.value)}
+        />
+      )}
+    </div>
+  );
+}
 
 export default function ProfileSetupPage() {
   const [fullName, setFullName] = useState("");
@@ -37,19 +76,19 @@ export default function ProfileSetupPage() {
   const [suburb, setSuburb] = useState("");
   const [state, setState] = useState("QLD");
   const [qualifications, setQualifications] = useState<string[]>([]);
+  const [otherQualification, setOtherQualification] = useState("");
   const [skills, setSkills] = useState<string[]>([]);
+  const [otherSkill, setOtherSkill] = useState("");
   const [software, setSoftware] = useState<string[]>([]);
+  const [otherSoftware, setOtherSoftware] = useState("");
   const [certificates, setCertificates] = useState<string[]>([]);
-  const [hospitalAccreditations, setHospitalAccreditations] = useState<string>("");
+  const [otherCertificate, setOtherCertificate] = useState("");
+  const [hospitalAccreditations, setHospitalAccreditations] = useState("");
   const [availability, setAvailability] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
   const supabase = createClient();
-
-  function toggleItem(list: string[], setList: (v: string[]) => void, item: string) {
-    setList(list.includes(item) ? list.filter((i) => i !== item) : [...list, item]);
-  }
 
   async function handleSave() {
     if (!fullName.trim()) return setError("Please enter your full name.");
@@ -66,16 +105,30 @@ export default function ProfileSetupPage() {
 
     if (profileError) { setError(profileError.message); setLoading(false); return; }
 
-    const allCerts = certificates.includes("Hospital Accreditation") && hospitalAccreditations
-      ? [...certificates.filter(c => c !== "Hospital Accreditation"), `Hospital Accreditation: ${hospitalAccreditations}`]
-      : certificates;
+    const finalQualifications = [
+      ...qualifications.filter(q => q !== "Other"),
+      ...(qualifications.includes("Other") && otherQualification ? [otherQualification] : []),
+    ];
+
+    const finalSkills = [
+      ...skills.filter(s => s !== "Other"),
+      ...(skills.includes("Other") && otherSkill ? [otherSkill] : []),
+      ...software.filter(s => s !== "Other"),
+      ...(software.includes("Other") && otherSoftware ? [otherSoftware] : []),
+    ];
+
+    const finalCertificates = [
+      ...certificates.filter(c => c !== "Other" && c !== "Hospital Accreditation"),
+      ...(certificates.includes("Hospital Accreditation") ? [`Hospital Accreditation${hospitalAccreditations ? `: ${hospitalAccreditations}` : ""}`] : []),
+      ...(certificates.includes("Other") && otherCertificate ? [otherCertificate] : []),
+    ];
 
     const { error: staffError } = await supabase
       .from("staff_profiles")
       .upsert({
         user_id: user.id,
-        qualifications,
-        skills: [...skills, ...software],
+        qualifications: finalQualifications,
+        skills: finalSkills,
         available_days: availability,
         credentialled_hospitals: hospitalAccreditations
           ? hospitalAccreditations.split(",").map(h => h.trim())
@@ -86,30 +139,6 @@ export default function ProfileSetupPage() {
 
     router.push("/");
   }
-
-  const Section = ({ title, items, selected, setSelected }: {
-    title: string;
-    items: string[];
-    selected: string[];
-    setSelected: (v: string[]) => void;
-  }) => (
-    <div>
-      <label className="text-sm font-medium text-slate-700">{title}</label>
-      <div className="mt-2 flex flex-wrap gap-2">
-        {items.map((item) => (
-          <button
-            key={item}
-            onClick={() => toggleItem(selected, setSelected, item)}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-              selected.includes(item) ? "bg-teal-700 text-white" : "bg-slate-100 text-slate-700"
-            }`}
-          >
-            {item}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50 p-4 md:p-8">
@@ -149,26 +178,22 @@ export default function ProfileSetupPage() {
               </div>
             </div>
 
-            <Section title="Qualifications" items={QUALIFICATIONS} selected={qualifications} setSelected={setQualifications} />
-            <Section title="Clinical skills & interests" items={SKILLS} selected={skills} setSelected={setSkills} />
-            <Section title="Practice management software" items={SOFTWARE} selected={software} setSelected={setSoftware} />
-            <Section title="Certificates & documents" items={CERTIFICATES} selected={certificates} setSelected={setCertificates} />
+            <ToggleGroup title="Qualifications" items={QUALIFICATIONS} selected={qualifications} setSelected={setQualifications} otherValue={otherQualification} setOtherValue={setOtherQualification} />
+            <ToggleGroup title="Clinical skills & interests" items={SKILLS} selected={skills} setSelected={setSkills} otherValue={otherSkill} setOtherValue={setOtherSkill} />
+            <ToggleGroup title="Practice management software" items={SOFTWARE} selected={software} setSelected={setSoftware} otherValue={otherSoftware} setOtherValue={setOtherSoftware} />
+            <ToggleGroup title="Certificates & documents" items={CERTIFICATES} selected={certificates} setSelected={setCertificates} otherValue={otherCertificate} setOtherValue={setOtherCertificate} />
 
             {certificates.includes("Hospital Accreditation") && (
               <div>
                 <label className="text-sm font-medium text-slate-700">Hospital accreditation — which hospitals?</label>
-                <input
-                  type="text"
-                  value={hospitalAccreditations}
-                  onChange={(e) => setHospitalAccreditations(e.target.value)}
+                <input type="text" value={hospitalAccreditations} onChange={(e) => setHospitalAccreditations(e.target.value)}
                   className="mt-1 w-full rounded-2xl border border-slate-200 p-3 text-sm"
-                  placeholder="e.g. PA Hospital, Mater, Royal Brisbane"
-                />
+                  placeholder="e.g. PA Hospital, Mater, Royal Brisbane" />
                 <p className="mt-1 text-xs text-slate-400">Separate multiple hospitals with a comma.</p>
               </div>
             )}
 
-            <Section title="Availability" items={AVAILABILITY} selected={availability} setSelected={setAvailability} />
+            <ToggleGroup title="Availability" items={AVAILABILITY} selected={availability} setSelected={setAvailability} />
 
             {error && <p className="text-sm text-red-600 bg-red-50 rounded-2xl p-3">{error}</p>}
 
