@@ -8,24 +8,8 @@ type Booking = {
   id: string;
   status: string;
   invited_at: string;
-  confirmed_at: string;
-  shifts: {
-    id: string;
-    role_required: string;
-    shift_date: string;
-    start_time: string;
-    end_time: string;
-    rate: number;
-    urgent: boolean;
-    hospital: string;
-    required_skills: string[];
-    clinic_profiles: {
-      clinic_name: string;
-      suburb: string;
-      address: string;
-      phone: string;
-    };
-  };
+  shift_id: string;
+  shifts: any;
 };
 
 export default function BookingsPage() {
@@ -42,21 +26,16 @@ export default function BookingsPage() {
 
     const { data: staffProfile } = await supabase
       .from("staff_profiles").select("id").eq("user_id", user.id).single();
-    if (!staffProfile) return;
 
-    const { data } = await supabase
+    if (!staffProfile) { setLoading(false); return; }
+
+    const { data, error } = await supabase
       .from("bookings")
-      .select(`
-        id, status, invited_at, confirmed_at,
-        shifts (
-          id, role_required, shift_date, start_time, end_time,
-          rate, urgent, hospital, required_skills,
-          clinic_profiles ( clinic_name, suburb, address, phone )
-        )
-      `)
+      .select("id, status, invited_at, shift_id, shifts(*, clinic_profiles(clinic_name, suburb, address, phone))")
       .eq("staff_id", staffProfile.id)
       .order("invited_at", { ascending: false });
 
+    if (error) console.error("Bookings error:", error);
     setBookings((data as any) || []);
     setLoading(false);
   }
@@ -69,14 +48,12 @@ export default function BookingsPage() {
     setWithdrawing(null);
   }
 
+  const today = new Date().toISOString().split("T")[0];
   const upcoming = bookings.filter(b =>
     (b.status === "confirmed" || b.status === "accepted") &&
-    b.shifts?.shift_date >= new Date().toISOString().split("T")[0]
+    b.shifts?.shift_date >= today
   );
-  const past = bookings.filter(b =>
-    b.shifts?.shift_date < new Date().toISOString().split("T")[0]
-  );
-  const pending = bookings.filter(b => b.status === "accepted");
+  const past = bookings.filter(b => b.shifts?.shift_date < today);
 
   const statusColour = (status: string) => {
     if (status === "confirmed") return "bg-emerald-50 text-emerald-700";
@@ -96,8 +73,8 @@ export default function BookingsPage() {
   function BookingCard({ booking }: { booking: Booking }) {
     const shift = booking.shifts;
     const clinic = shift?.clinic_profiles;
-    const isUpcoming = shift?.shift_date >= new Date().toISOString().split("T")[0];
-    const canWithdraw = booking.status === "accepted" || booking.status === "confirmed";
+    const isUpcoming = shift?.shift_date >= today;
+    const canWithdraw = (booking.status === "accepted" || booking.status === "confirmed") && isUpcoming;
 
     return (
       <div className="rounded-3xl border border-slate-100 bg-white shadow-sm p-5">
@@ -122,7 +99,6 @@ export default function BookingsPage() {
               {shift?.start_time?.slice(0, 5)} – {shift?.end_time?.slice(0, 5)}
               {shift?.hospital ? " • " + shift.hospital : ""}
             </p>
-
             {booking.status === "confirmed" && clinic && (
               <div className="mt-3 rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-800">
                 <div className="font-semibold mb-1">📍 Clinic details</div>
@@ -130,7 +106,6 @@ export default function BookingsPage() {
                 {clinic.phone && <div>📞 {clinic.phone}</div>}
               </div>
             )}
-
             {shift?.required_skills?.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-1">
                 {shift.required_skills.slice(0, 4).map((s: string) => (
@@ -139,10 +114,9 @@ export default function BookingsPage() {
               </div>
             )}
           </div>
-
           <div className="flex flex-col items-end gap-3">
             <div className="text-2xl font-bold text-teal-700">${shift?.rate}/hr</div>
-            {isUpcoming && canWithdraw && (
+            {canWithdraw && (
               <button
                 onClick={() => withdrawBooking(booking.id)}
                 disabled={withdrawing === booking.id}
@@ -170,11 +144,10 @@ export default function BookingsPage() {
           </Link>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-3 gap-4 mb-6">
           {[
             { label: "Upcoming", value: upcoming.length, colour: "text-teal-700" },
-            { label: "Awaiting confirmation", value: pending.length, colour: "text-amber-600" },
+            { label: "Awaiting confirmation", value: bookings.filter(b => b.status === "accepted").length, colour: "text-amber-600" },
             { label: "Past shifts", value: past.length, colour: "text-slate-500" },
           ].map(({ label, value, colour }) => (
             <div key={label} className="rounded-3xl border border-slate-100 bg-white shadow-sm p-4 text-center">
@@ -205,16 +178,22 @@ export default function BookingsPage() {
                 </div>
               </div>
             )}
-
-            {pending.filter(b => !upcoming.includes(b)).length > 0 && (
+            {bookings.filter(b => b.status === "accepted" && b.shifts?.shift_date >= today && !upcoming.find(u => u.id === b.id)).length > 0 && (
               <div>
                 <h2 className="text-lg font-bold mb-3">Awaiting confirmation</h2>
                 <div className="space-y-4">
-                  {pending.filter(b => !upcoming.includes(b)).map(b => <BookingCard key={b.id} booking={b} />)}
+                  {bookings.filter(b => b.status === "accepted").map(b => <BookingCard key={b.id} booking={b} />)}
                 </div>
               </div>
             )}
-
+            {bookings.filter(b => b.status === "declined" || b.status === "cancelled").length > 0 && (
+              <div>
+                <h2 className="text-lg font-bold mb-3 text-slate-500">Declined / Withdrawn</h2>
+                <div className="space-y-4 opacity-75">
+                  {bookings.filter(b => b.status === "declined" || b.status === "cancelled").map(b => <BookingCard key={b.id} booking={b} />)}
+                </div>
+              </div>
+            )}
             {past.length > 0 && (
               <div>
                 <h2 className="text-lg font-bold mb-3 text-slate-500">Past shifts</h2>
