@@ -1,3 +1,4 @@
+cat > app/page.tsx << 'EOF'
 "use client";
 
 import type React from "react";
@@ -22,6 +23,25 @@ type Shift = {
 const badges = [
   "Fully Verified", "Last-Minute Legend", "Clinic Favourite", "Compliance Pro",
   "Reliable Pro", "Paeds Pro", "GA Veteran", "Fast Responder", "Availability Master",
+];
+
+const SKILLS = [
+  "General Dentistry", "Paeds", "Ortho", "Perio", "Pros", "OHT", "Hygienist",
+  "Steri", "Receptionist", "Clinical Team Leader", "Practice Manager",
+  "Front Office Coordinator", "Implants", "Endo", "GA", "SND", "Oral Surgery",
+  "Oral Med", "Oral Path", "Radiology", "Dental Sleep Medicine",
+  "Functional Dentistry", "Cosmetic Dentistry",
+];
+
+const SOFTWARE = [
+  "D4W", "Praktika", "Ultimo", "Exact", "Core Practice",
+  "Dentally", "CareStack", "Principle",
+];
+
+const CERTIFICATES = [
+  "Cert III", "Cert IV", "Radiation Licence", "Blue Card", "CPR",
+  "First Aid", "Drivers Licence", "Immunisations", "Hospital Accreditation",
+  "Orofacial Myology", "Sedation & GA Support Training", "Infection Control Certification",
 ];
 
 function Pill({ children, tone = "default" }: { children: React.ReactNode; tone?: "default" | "green" | "red" | "amber" | "teal" }) {
@@ -79,7 +99,6 @@ function CandidateView() {
 
     if (!staffProfile) {
       window.location.href = "/profile/setup";
-      setAccepting(null);
       return;
     }
 
@@ -221,7 +240,9 @@ function ClinicView() {
   const [hospital, setHospital] = useState("");
   const [urgent, setUrgent] = useState(false);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [selectedSoftware, setSelectedSoftware] = useState<string[]>([]);
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
+  const [hospitalAccreditation, setHospitalAccreditation] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -247,6 +268,11 @@ function ClinicView() {
       setLoading(false);
       return;
     }
+
+    const allDocs = selectedDocs.includes("Hospital Accreditation") && hospitalAccreditation
+      ? [...selectedDocs.filter(d => d !== "Hospital Accreditation"), `Hospital Accreditation: ${hospitalAccreditation}`]
+      : selectedDocs;
+
     const { error: shiftError } = await supabase.from("shifts").insert({
       clinic_id: clinicProfile.id,
       role_required: role,
@@ -256,8 +282,8 @@ function ClinicView() {
       rate: parseFloat(rate),
       hospital,
       urgent,
-      required_skills: selectedSkills,
-      required_documents: selectedDocs,
+      required_skills: [...selectedSkills, ...selectedSoftware],
+      required_documents: allDocs,
       status: "open",
       broadcast: true,
     });
@@ -269,6 +295,24 @@ function ClinicView() {
     window.location.href = "/shifts";
   }
 
+  const ToggleGroup = ({ label, items, selected, setSelected }: {
+    label: string; items: string[]; selected: string[]; setSelected: (v: string[]) => void;
+  }) => (
+    <div>
+      <div className="mb-2 text-sm font-semibold">{label}</div>
+      <div className="flex flex-wrap gap-2">
+        {items.map((item) => (
+          <button key={item} onClick={() => toggleItem(selected, setSelected, item)}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+              selected.includes(item) ? "bg-teal-700 text-white" : "bg-teal-50 text-teal-700"
+            }`}>
+            {item}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
       <Card className="p-6">
@@ -279,9 +323,14 @@ function ClinicView() {
             <input className="rounded-2xl border border-slate-200 p-3" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             <select className="rounded-2xl border border-slate-200 p-3" value={role} onChange={(e) => setRole(e.target.value)}>
               <option>Chairside Assistant</option>
-              <option>Reception</option>
+              <option>Receptionist</option>
               <option>Steri</option>
               <option>OHT / Hygienist</option>
+              <option>Clinical Team Leader</option>
+              <option>Practice Manager</option>
+              <option>Front Office Coordinator</option>
+              <option>Dental Therapist</option>
+              <option>Dental Prosthetist</option>
             </select>
           </div>
           <div className="grid gap-3 md:grid-cols-3">
@@ -290,28 +339,34 @@ function ClinicView() {
             <input className="rounded-2xl border border-slate-200 p-3" placeholder="$/hr e.g. 45" value={rate} onChange={(e) => setRate(e.target.value.replace(/[^0-9.]/g, ""))} />
           </div>
           <input className="w-full rounded-2xl border border-slate-200 p-3" placeholder="Hospital / facility (optional)" value={hospital} onChange={(e) => setHospital(e.target.value)} />
+
+          <ToggleGroup label="Required clinical skills" items={SKILLS} selected={selectedSkills} setSelected={setSelectedSkills} />
+          <ToggleGroup label="Practice management software" items={SOFTWARE} selected={selectedSoftware} setSelected={setSelectedSoftware} />
+
           <div>
-            <div className="mb-2 text-sm font-semibold">Required skills</div>
+            <div className="mb-2 text-sm font-semibold">Required certificates & documents</div>
             <div className="flex flex-wrap gap-2">
-              {["Chairside", "Paeds", "GA", "Ortho", "Reception", "Steri", "Open Dental", "Exact"].map((skill) => (
-                <button key={skill} onClick={() => toggleItem(selectedSkills, setSelectedSkills, skill)}
-                  className={`rounded-full px-3 py-1 text-xs font-medium transition ${selectedSkills.includes(skill) ? "bg-teal-700 text-white" : "bg-teal-50 text-teal-700"}`}>
-                  {skill}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <div className="mb-2 text-sm font-semibold">Required documents</div>
-            <div className="flex flex-wrap gap-2">
-              {["Cert III", "CPR", "First Aid", "Radiation licence", "Blue Card", "Immunisation"].map((doc) => (
+              {CERTIFICATES.map((doc) => (
                 <button key={doc} onClick={() => toggleItem(selectedDocs, setSelectedDocs, doc)}
-                  className={`rounded-full px-3 py-1 text-xs font-medium transition ${selectedDocs.includes(doc) ? "bg-emerald-700 text-white" : "bg-emerald-50 text-emerald-700"}`}>
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+                    selectedDocs.includes(doc) ? "bg-emerald-700 text-white" : "bg-emerald-50 text-emerald-700"
+                  }`}>
                   {doc}
                 </button>
               ))}
             </div>
+            {selectedDocs.includes("Hospital Accreditation") && (
+              <div className="mt-3">
+                <input
+                  className="w-full rounded-2xl border border-slate-200 p-3 text-sm"
+                  placeholder="Which hospital? e.g. PA Hospital, Mater"
+                  value={hospitalAccreditation}
+                  onChange={(e) => setHospitalAccreditation(e.target.value)}
+                />
+              </div>
+            )}
           </div>
+
           <div className="grid gap-3 md:grid-cols-2">
             <div className="rounded-2xl border border-slate-200 p-4">
               <div className="font-semibold">Preferred staff first</div>
@@ -323,7 +378,9 @@ function ClinicView() {
               <p className="text-sm opacity-70">Notify candidates who allow urgent alerts.</p>
             </button>
           </div>
+
           {error && <p className="text-sm text-red-600 bg-red-50 rounded-2xl p-3">{error}</p>}
+
           <Button onClick={handlePost} className={`w-full py-4 text-white ${loading ? "bg-teal-400" : "bg-teal-700"}`}>
             {loading ? "Posting..." : "Post shift"}
           </Button>
@@ -463,3 +520,4 @@ export default function Page() {
     </main>
   );
 }
+EOF
