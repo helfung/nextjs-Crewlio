@@ -315,7 +315,7 @@ function ClinicView() {
             />
             <input
               className="rounded-2xl border border-slate-200 p-3"
-              placeholder="45"
+              placeholder="$/hr e.g. 45"
               value={rate}
               onChange={(e) => setRate(e.target.value.replace(/[^0-9.]/g, ""))}
             />
