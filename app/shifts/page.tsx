@@ -99,7 +99,6 @@ export default function ShiftsPage() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50 p-4 md:p-8">
       <div className="mx-auto max-w-4xl">
-
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Shift dashboard</h1>
@@ -139,13 +138,14 @@ export default function ShiftsPage() {
           <div className="space-y-4">
             {shifts.map((shift) => {
               const isExpanded = expandedShift === shift.id;
+              const editHref = "/shifts/edit?id=" + shift.id;
               return (
                 <div key={shift.id} className="rounded-3xl border border-slate-100 bg-white shadow-sm overflow-hidden">
                   <div className="p-5">
                     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                       <div className="flex-1">
                         <div className="flex flex-wrap gap-2 mb-2">
-                          <span className={`rounded-full px-3 py-1 text-xs font-medium ${statusColour(shift.status)}`}>
+                          <span className={"rounded-full px-3 py-1 text-xs font-medium " + statusColour(shift.status)}>
                             {shift.status}
                           </span>
                           {shift.urgent && (
@@ -160,8 +160,8 @@ export default function ShiftsPage() {
                         <h3 className="font-semibold text-lg">{shift.role_required}</h3>
                         <p className="text-sm text-slate-500 mt-1">
                           {new Date(shift.shift_date).toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
-                          {" • "}{shift.start_time?.slice(0, 5)} – {shift.end_time?.slice(0, 5)}
-                          {shift.hospital && ` • ${shift.hospital}`}
+                          {" • "}{shift.start_time?.slice(0, 5)} {" – "} {shift.end_time?.slice(0, 5)}
+                          {shift.hospital ? " • " + shift.hospital : ""}
                         </p>
                         {shift.required_skills?.length > 0 && (
                           <div className="mt-2 flex flex-wrap gap-1">
@@ -181,15 +181,12 @@ export default function ShiftsPage() {
                             onClick={() => setExpandedShift(isExpanded ? null : shift.id)}
                             className="rounded-2xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
                           >
-                            {isExpanded ? "Hide" : `${shift.bookings.length} booking${shift.bookings.length > 1 ? "s" : ""}`}
+                            {isExpanded ? "Hide" : shift.bookings.length + " booking" + (shift.bookings.length > 1 ? "s" : "")}
                           </button>
                         )}
                         {shift.status === "open" && (
                           <>
-                            
-                              href={`/shifts/edit?id=${shift.id}`}
-                              className="rounded-2xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
-                            >
+                            <a href={editHref} className="rounded-2xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">
                               Edit
                             </a>
                             <button
@@ -216,7 +213,7 @@ export default function ShiftsPage() {
                               <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                                 <div>
                                   <div className="flex items-center gap-2 mb-1">
-                                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${statusColour(booking.status)}`}>
+                                    <span className={"rounded-full px-2 py-0.5 text-xs font-medium " + statusColour(booking.status)}>
                                       {booking.status}
                                     </span>
                                   </div>
@@ -225,7 +222,7 @@ export default function ShiftsPage() {
                                   </p>
                                   {booking.status === "confirmed" && (
                                     <p className="text-xs text-slate-500 mt-0.5">
-                                      {profile?.email}{profile?.phone && ` • ${profile.phone}`}
+                                      {profile?.email}{profile?.phone ? " • " + profile.phone : ""}
                                     </p>
                                   )}
                                   {staff?.qualifications?.length > 0 && (
