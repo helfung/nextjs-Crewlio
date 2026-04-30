@@ -78,7 +78,7 @@ function CandidateView() {
       .from("staff_profiles").select("id").eq("user_id", user.id).single();
 
     if (!staffProfile) {
-      alert("Please complete your profile first.");
+      window.location.href = "/profile/setup";
       setAccepting(null);
       return;
     }
