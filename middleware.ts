@@ -29,7 +29,7 @@ export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
   // Not logged in — redirect to login
-  if (!user && !path.startsWith("/auth")) {
+  if (!user && !path.startsWith("/auth") && !path.startsWith("/auth/reset-password")) {
     const url = request.nextUrl.clone();
     url.pathname = "/auth/login";
     return NextResponse.redirect(url);
