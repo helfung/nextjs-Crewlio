@@ -29,18 +29,18 @@ const SKILLS = [
   "Steri", "Receptionist", "Clinical Team Leader", "Practice Manager",
   "Front Office Coordinator", "Implants", "Endo", "GA", "SND", "Oral Surgery",
   "Oral Med", "Oral Path", "Radiology", "Dental Sleep Medicine",
-  "Functional Dentistry", "Cosmetic Dentistry",
+  "Functional Dentistry", "Cosmetic Dentistry", "Other",
 ];
 
 const SOFTWARE = [
   "D4W", "Praktika", "Ultimo", "Exact", "Core Practice",
-  "Dentally", "CareStack", "Principle",
+  "Dentally", "CareStack", "Principle", "Other",
 ];
 
 const CERTIFICATES = [
   "Cert III", "Cert IV", "Radiation Licence", "Blue Card", "CPR",
   "First Aid", "Drivers Licence", "Immunisations", "Hospital Accreditation",
-  "Orofacial Myology", "Sedation & GA Support Training", "Infection Control Certification",
+  "Orofacial Myology", "Sedation & GA Support Training", "Infection Control Certification", "Other",
 ];
 
 function Pill({ children, tone = "default" }: { children: React.ReactNode; tone?: "default" | "green" | "red" | "amber" | "teal" }) {
@@ -63,6 +63,45 @@ function Button({ children, className = "", onClick }: { children: React.ReactNo
     <button onClick={onClick} className={`rounded-2xl px-4 py-2 text-sm font-semibold transition hover:opacity-90 ${className}`}>
       {children}
     </button>
+  );
+}
+
+function ToggleGroup({ label, items, selected, setSelected, otherValue, setOtherValue, activeColour = "teal" }: {
+  label: string;
+  items: string[];
+  selected: string[];
+  setSelected: (v: string[]) => void;
+  otherValue?: string;
+  setOtherValue?: (v: string) => void;
+  activeColour?: "teal" | "emerald";
+}) {
+  function toggleItem(item: string) {
+    setSelected(selected.includes(item) ? selected.filter((i) => i !== item) : [...selected, item]);
+  }
+
+  const activeBg = activeColour === "emerald" ? "bg-emerald-700 text-white" : "bg-teal-700 text-white";
+  const inactiveBg = activeColour === "emerald" ? "bg-emerald-50 text-emerald-700" : "bg-teal-50 text-teal-700";
+
+  return (
+    <div>
+      <div className="mb-2 text-sm font-semibold">{label}</div>
+      <div className="flex flex-wrap gap-2">
+        {items.map((item) => (
+          <button key={item} onClick={() => toggleItem(item)}
+            className={`rounded-full px-3 py-1 text-xs font-medium transition ${selected.includes(item) ? activeBg : inactiveBg}`}>
+            {item}
+          </button>
+        ))}
+      </div>
+      {selected.includes("Other") && setOtherValue !== undefined && (
+        <input
+          className="mt-3 w-full rounded-2xl border border-slate-200 p-3 text-sm"
+          placeholder="Please specify..."
+          value={otherValue || ""}
+          onChange={(e) => setOtherValue(e.target.value)}
+        />
+      )}
+    </div>
   );
 }
 
@@ -239,15 +278,14 @@ function ClinicView() {
   const [hospital, setHospital] = useState("");
   const [urgent, setUrgent] = useState(false);
   const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [otherSkill, setOtherSkill] = useState("");
   const [selectedSoftware, setSelectedSoftware] = useState<string[]>([]);
+  const [otherSoftware, setOtherSoftware] = useState("");
   const [selectedDocs, setSelectedDocs] = useState<string[]>([]);
+  const [otherDoc, setOtherDoc] = useState("");
   const [hospitalAccreditation, setHospitalAccreditation] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  function toggleItem(list: string[], setList: (v: string[]) => void, item: string) {
-    setList(list.includes(item) ? list.filter((i) => i !== item) : [...list, item]);
-  }
 
   async function handlePost() {
     if (!date || !startTime || !endTime || !rate) {
@@ -268,9 +306,20 @@ function ClinicView() {
       return;
     }
 
-    const allDocs = selectedDocs.includes("Hospital Accreditation") && hospitalAccreditation
-      ? [...selectedDocs.filter(d => d !== "Hospital Accreditation"), `Hospital Accreditation: ${hospitalAccreditation}`]
-      : selectedDocs;
+    const finalSkills = [
+      ...selectedSkills.filter(s => s !== "Other"),
+      ...(selectedSkills.includes("Other") && otherSkill ? [otherSkill] : []),
+      ...selectedSoftware.filter(s => s !== "Other"),
+      ...(selectedSoftware.includes("Other") && otherSoftware ? [otherSoftware] : []),
+    ];
+
+    const finalDocs = [
+      ...selectedDocs.filter(d => d !== "Other" && d !== "Hospital Accreditation"),
+      ...(selectedDocs.includes("Hospital Accreditation") && hospitalAccreditation
+        ? [`Hospital Accreditation: ${hospitalAccreditation}`]
+        : selectedDocs.includes("Hospital Accreditation") ? ["Hospital Accreditation"] : []),
+      ...(selectedDocs.includes("Other") && otherDoc ? [otherDoc] : []),
+    ];
 
     const { error: shiftError } = await supabase.from("shifts").insert({
       clinic_id: clinicProfile.id,
@@ -281,8 +330,8 @@ function ClinicView() {
       rate: parseFloat(rate),
       hospital,
       urgent,
-      required_skills: [...selectedSkills, ...selectedSoftware],
-      required_documents: allDocs,
+      required_skills: finalSkills,
+      required_documents: finalDocs,
       status: "open",
       broadcast: true,
     });
@@ -293,24 +342,6 @@ function ClinicView() {
     }
     window.location.href = "/shifts";
   }
-
-  const ToggleGroup = ({ label, items, selected, setSelected }: {
-    label: string; items: string[]; selected: string[]; setSelected: (v: string[]) => void;
-  }) => (
-    <div>
-      <div className="mb-2 text-sm font-semibold">{label}</div>
-      <div className="flex flex-wrap gap-2">
-        {items.map((item) => (
-          <button key={item} onClick={() => toggleItem(selected, setSelected, item)}
-            className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-              selected.includes(item) ? "bg-teal-700 text-white" : "bg-teal-50 text-teal-700"
-            }`}>
-            {item}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
 
   return (
     <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
@@ -339,32 +370,40 @@ function ClinicView() {
           </div>
           <input className="w-full rounded-2xl border border-slate-200 p-3" placeholder="Hospital / facility (optional)" value={hospital} onChange={(e) => setHospital(e.target.value)} />
 
-          <ToggleGroup label="Required clinical skills" items={SKILLS} selected={selectedSkills} setSelected={setSelectedSkills} />
-          <ToggleGroup label="Practice management software" items={SOFTWARE} selected={selectedSoftware} setSelected={setSelectedSoftware} />
+          <ToggleGroup
+            label="Required clinical skills"
+            items={SKILLS}
+            selected={selectedSkills}
+            setSelected={setSelectedSkills}
+            otherValue={otherSkill}
+            setOtherValue={setOtherSkill}
+          />
+          <ToggleGroup
+            label="Practice management software"
+            items={SOFTWARE}
+            selected={selectedSoftware}
+            setSelected={setSelectedSoftware}
+            otherValue={otherSoftware}
+            setOtherValue={setOtherSoftware}
+          />
+          <ToggleGroup
+            label="Required certificates & documents"
+            items={CERTIFICATES}
+            selected={selectedDocs}
+            setSelected={setSelectedDocs}
+            otherValue={otherDoc}
+            setOtherValue={setOtherDoc}
+            activeColour="emerald"
+          />
 
-          <div>
-            <div className="mb-2 text-sm font-semibold">Required certificates & documents</div>
-            <div className="flex flex-wrap gap-2">
-              {CERTIFICATES.map((doc) => (
-                <button key={doc} onClick={() => toggleItem(selectedDocs, setSelectedDocs, doc)}
-                  className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                    selectedDocs.includes(doc) ? "bg-emerald-700 text-white" : "bg-emerald-50 text-emerald-700"
-                  }`}>
-                  {doc}
-                </button>
-              ))}
-            </div>
-            {selectedDocs.includes("Hospital Accreditation") && (
-              <div className="mt-3">
-                <input
-                  className="w-full rounded-2xl border border-slate-200 p-3 text-sm"
-                  placeholder="Which hospital? e.g. PA Hospital, Mater"
-                  value={hospitalAccreditation}
-                  onChange={(e) => setHospitalAccreditation(e.target.value)}
-                />
-              </div>
-            )}
-          </div>
+          {selectedDocs.includes("Hospital Accreditation") && (
+            <input
+              className="w-full rounded-2xl border border-slate-200 p-3 text-sm"
+              placeholder="Which hospital? e.g. PA Hospital, Mater"
+              value={hospitalAccreditation}
+              onChange={(e) => setHospitalAccreditation(e.target.value)}
+            />
+          )}
 
           <div className="grid gap-3 md:grid-cols-2">
             <div className="rounded-2xl border border-slate-200 p-4">
