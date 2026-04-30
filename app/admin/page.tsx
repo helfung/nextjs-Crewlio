@@ -38,6 +38,7 @@ export default function AdminPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [shifts, setShifts] = useState<ShiftRow[]>([]);
   const [users, setUsers] = useState<UserRow[]>([]);
+  const [feedback, setFeedback] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"overview" | "shifts" | "users" | "feedback">("overview");
   const router = useRouter();
