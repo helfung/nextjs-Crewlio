@@ -445,49 +445,204 @@ function ClinicView() {
 }
 
 function AdminView() {
+  const [adminData, setAdminData] = useState<{
+    totalTalent: number;
+    totalEmployers: number;
+    totalShifts: number;
+    openShifts: number;
+    totalBookings: number;
+    confirmedBookings: number;
+    fillRate: number;
+    recentUsers: any[];
+    recentShifts: any[];
+    incompleteProfiles: any[];
+  } | null>(null);
+
+  useEffect(() => {
+    async function fetchAdminData() {
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+
+      const [
+        { count: totalTalent },
+        { count: totalEmployers },
+        { count: totalShifts },
+        { count: openShifts },
+        { count: totalBookings },
+        { count: confirmedBookings },
+      ] = await Promise.all([
+        supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "staff"),
+        supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "clinic"),
+        supabase.from("shifts").select("*", { count: "exact", head: true }),
+        supabase.from("shifts").select("*", { count: "exact", head: true }).eq("status", "open"),
+        supabase.from("bookings").select("*", { count: "exact", head: true }),
+        supabase.from("bookings").select("*", { count: "exact", head: true }).eq("status", "confirmed"),
+      ]);
+
+      const fillRate = totalShifts ? Math.round(((confirmedBookings || 0) / (totalShifts || 1)) * 100) : 0;
+
+      const { data: recentUsers } = await supabase
+        .from("profiles")
+        .select("id, email, role, full_name, created_at")
+        .order("created_at", { ascending: false })
+        .limit(5);
+
+      const { data: recentShifts } = await supabase
+        .from("shifts")
+        .select("id, role_required, shift_date, status, rate, clinic_id")
+        .order("id", { ascending: false })
+        .limit(5);
+
+      const { data: incompleteProfiles } = await supabase
+        .from("profiles")
+        .select("id, email, role, full_name")
+        .eq("role", "staff")
+        .is("full_name", null);
+
+      let enrichedShifts: any[] = [];
+      if (recentShifts && recentShifts.length > 0) {
+        const clinicIds = recentShifts.map(s => s.clinic_id);
+        const { data: clinics } = await supabase
+          .from("clinic_profiles").select("id, clinic_name").in("id", clinicIds);
+        enrichedShifts = recentShifts.map(s => ({
+          ...s,
+          clinic_name: clinics?.find(c => c.id === s.clinic_id)?.clinic_name || "Unknown",
+        }));
+      }
+
+      setAdminData({
+        totalTalent: totalTalent || 0,
+        totalEmployers: totalEmployers || 0,
+        totalShifts: totalShifts || 0,
+        openShifts: openShifts || 0,
+        totalBookings: totalBookings || 0,
+        confirmedBookings: confirmedBookings || 0,
+        fillRate,
+        recentUsers: recentUsers || [],
+        recentShifts: enrichedShifts,
+        incompleteProfiles: incompleteProfiles || [],
+      });
+    }
+    fetchAdminData();
+  }, []);
+
+  if (!adminData) return <div className="text-center text-slate-500 py-12">Loading admin data...</div>;
+
+  const statusColour = (status: string) => {
+    if (status === "filled" || status === "confirmed") return "bg-emerald-50 text-emerald-700";
+    if (status === "cancelled") return "bg-red-50 text-red-700";
+    if (status === "open") return "bg-amber-50 text-amber-700";
+    return "bg-slate-100 text-slate-700";
+  };
+
+  const roleColour = (role: string) => {
+    if (role === "admin") return "bg-purple-50 text-purple-700";
+    if (role === "clinic") return "bg-blue-50 text-blue-700";
+    return "bg-teal-50 text-teal-700";
+  };
+
   return (
     <div className="space-y-6">
+      {/* Real stats */}
       <div className="grid gap-4 md:grid-cols-4">
-        {[["Fill rate", "78%"], ["Avg response", "14 min"], ["Compliance alerts", "12"], ["Open disputes", "2"]].map(([label, value]) => (
+        {[
+          { label: "Talent", value: adminData.totalTalent, icon: "🩺", colour: "text-teal-700" },
+          { label: "Employers", value: adminData.totalEmployers, icon: "🏥", colour: "text-blue-700" },
+          { label: "Open shifts", value: adminData.openShifts, icon: "📋", colour: "text-amber-600" },
+          { label: "Fill rate", value: adminData.fillRate + "%", icon: "✅", colour: "text-emerald-700" },
+        ].map(({ label, value, icon, colour }) => (
           <Card key={label} className="p-5">
-            <div className="text-2xl font-bold text-teal-700">{value}</div>
+            <div className="text-2xl mb-1">{icon}</div>
+            <div className={"text-2xl font-bold " + colour}>{value}</div>
             <div className="text-sm text-slate-500">{label}</div>
           </Card>
         ))}
       </div>
+
+      <div className="grid gap-4 md:grid-cols-4">
+        {[
+          { label: "Total shifts", value: adminData.totalShifts, colour: "text-slate-700" },
+          { label: "Total bookings", value: adminData.totalBookings, colour: "text-slate-700" },
+          { label: "Confirmed bookings", value: adminData.confirmedBookings, colour: "text-emerald-700" },
+          { label: "Incomplete profiles", value: adminData.incompleteProfiles.length, colour: "text-amber-600" },
+        ].map(({ label, value, colour }) => (
+          <Card key={label} className="p-5">
+            <div className={"text-2xl font-bold " + colour}>{value}</div>
+            <div className="text-sm text-slate-500">{label}</div>
+          </Card>
+        ))}
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-2">
+        {/* Recent signups */}
         <Card className="p-6">
-          <h2 className="text-xl font-bold">Compliance queue</h2>
-          <p className="mt-1 text-sm text-slate-500">OCR validation with admin override.</p>
+          <h2 className="text-xl font-bold">Recent signups</h2>
+          <p className="mt-1 text-sm text-slate-500">Latest users on the platform.</p>
           <div className="mt-4 space-y-3">
-            {["Radiation licence review", "Blue Card expiry warning", "CPR certificate unclear scan"].map((item) => (
-              <div key={item} className="flex items-center justify-between rounded-2xl border border-slate-100 p-4">
-                <span className="text-sm font-medium">{item}</span>
-                <Button className="border border-slate-200 bg-white">Review</Button>
+            {adminData.recentUsers.length === 0 ? (
+              <p className="text-sm text-slate-400">No users yet.</p>
+            ) : adminData.recentUsers.map((user) => (
+              <div key={user.id} className="flex items-center justify-between rounded-2xl border border-slate-100 p-3">
+                <div>
+                  <p className="text-sm font-semibold">{user.full_name || "No name"}</p>
+                  <p className="text-xs text-slate-500">{user.email}</p>
+                </div>
+                <span className={"rounded-full px-2 py-0.5 text-xs font-medium " + roleColour(user.role)}>
+                  {user.role}
+                </span>
               </div>
             ))}
           </div>
         </Card>
+
+        {/* Recent shifts */}
         <Card className="p-6">
-          <h2 className="text-xl font-bold">Security posture</h2>
-          <p className="mt-1 text-sm text-slate-500">Priority controls for sensitive workforce data.</p>
-          <div className="mt-4 space-y-3 text-sm">
-            <div className="rounded-2xl bg-emerald-50 p-4 text-emerald-800">✓ Role-based access control</div>
-            <div className="rounded-2xl bg-emerald-50 p-4 text-emerald-800">✓ Signed document URLs planned</div>
-            <div className="rounded-2xl bg-emerald-50 p-4 text-emerald-800">✓ Document access audit logs planned</div>
+          <h2 className="text-xl font-bold">Recent shifts</h2>
+          <p className="mt-1 text-sm text-slate-500">Latest shifts posted by employers.</p>
+          <div className="mt-4 space-y-3">
+            {adminData.recentShifts.length === 0 ? (
+              <p className="text-sm text-slate-400">No shifts yet.</p>
+            ) : adminData.recentShifts.map((shift) => (
+              <div key={shift.id} className="flex items-center justify-between rounded-2xl border border-slate-100 p-3">
+                <div>
+                  <p className="text-sm font-semibold">{shift.role_required}</p>
+                  <p className="text-xs text-slate-500">{shift.clinic_name} • {new Date(shift.shift_date).toLocaleDateString("en-AU", { day: "numeric", month: "short" })}</p>
+                </div>
+                <span className={"rounded-full px-2 py-0.5 text-xs font-medium " + statusColour(shift.status)}>
+                  {shift.status}
+                </span>
+              </div>
+            ))}
           </div>
         </Card>
       </div>
+
+      {/* Incomplete profiles */}
+      {adminData.incompleteProfiles.length > 0 && (
+        <Card className="p-6">
+          <h2 className="text-xl font-bold">⚠️ Incomplete talent profiles</h2>
+          <p className="mt-1 text-sm text-slate-500">These talent users haven't completed their profile setup.</p>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            {adminData.incompleteProfiles.map((user) => (
+              <div key={user.id} className="rounded-2xl border border-amber-100 bg-amber-50 p-3">
+                <p className="text-sm font-semibold text-amber-800">{user.email}</p>
+                <p className="text-xs text-amber-600 mt-0.5">No profile set up</p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Security posture */}
       <Card className="p-6">
-        <h2 className="text-xl font-bold">Gamification catalogue</h2>
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
-          {badges.map((badge) => (
-            <div key={badge} className="rounded-2xl border border-slate-100 p-4">
-              <div className="text-xl">🏅</div>
-              <div className="font-semibold">{badge}</div>
-              <div className="mt-1 text-sm text-slate-500">Behaviour-shaping badge for trust and retention.</div>
-            </div>
-          ))}
+        <h2 className="text-xl font-bold">Security posture</h2>
+        <p className="mt-1 text-sm text-slate-500">Platform security controls.</p>
+        <div className="mt-4 space-y-3 text-sm">
+          <div className="rounded-2xl bg-emerald-50 p-4 text-emerald-800">✓ Role-based access control active</div>
+          <div className="rounded-2xl bg-emerald-50 p-4 text-emerald-800">✓ Row-level security enabled on all tables</div>
+          <div className="rounded-2xl bg-emerald-50 p-4 text-emerald-800">✓ Candidate details hidden until confirmed</div>
+          <div className="rounded-2xl bg-amber-50 p-4 text-amber-800">⚠ Document upload not yet implemented</div>
+          <div className="rounded-2xl bg-amber-50 p-4 text-amber-800">⚠ Email notifications not yet set up</div>
         </div>
       </Card>
     </div>
