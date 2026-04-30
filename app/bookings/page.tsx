@@ -33,7 +33,7 @@ export default function BookingsPage() {
 
     const { data, error } = await supabase
       .from("bookings")
-      .select("id, status, invited_at, shift_id, shifts(*, clinic_profiles(clinic_name, suburb, address, phone))")
+      .select("id, status, invited_at, shift_id, shifts(*, clinic_profiles(clinic_name, suburb, address))")
       .eq("staff_id", staffProfile.id)
       .order("id", { ascending: false });
 
@@ -105,7 +105,7 @@ export default function BookingsPage() {
               <div className="mt-3 rounded-2xl bg-emerald-50 p-3 text-sm text-emerald-800">
                 <div className="font-semibold mb-1">📍 Clinic details</div>
                 {clinic.address && <div>{clinic.address}{clinic.suburb ? ", " + clinic.suburb : ""}</div>}
-                {clinic.phone && <div>📞 {clinic.phone}</div>}
+                
               </div>
             )}
             {shift?.required_skills?.length > 0 && (
