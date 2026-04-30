@@ -35,7 +35,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Logged in — check if talent needs to complete profile
+  // Skip profile checks if already on a setup page
+  if (path.startsWith("/profile/setup") || path.startsWith("/employer/setup")) {
+    return supabaseResponse;
+  }
+
+  // Logged in — check if profile setup is needed
   if (user && path === "/") {
     const { data: profile } = await supabase
       .from("profiles")
@@ -53,6 +58,20 @@ export async function middleware(request: NextRequest) {
       if (!staffProfile) {
         const url = request.nextUrl.clone();
         url.pathname = "/profile/setup";
+        return NextResponse.redirect(url);
+      }
+    }
+
+    if (profile?.role === "clinic") {
+      const { data: clinicProfile } = await supabase
+        .from("clinic_profiles")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!clinicProfile) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/employer/setup";
         return NextResponse.redirect(url);
       }
     }
