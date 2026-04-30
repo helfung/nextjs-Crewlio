@@ -19,6 +19,17 @@ type Shift = {
   clinic_profiles: { clinic_name: string };
 };
 
+type CandidateMatch = {
+  id: string;
+  user_id: string;
+  qualifications: string[];
+  skills: string[];
+  available_days: string[];
+  matchScore: number;
+  profileName: string;
+  profileEmail: string;
+};
+
 const badges = [
   "Fully Verified", "Last-Minute Legend", "Clinic Favourite", "Compliance Pro",
   "Reliable Pro", "Paeds Pro", "GA Veteran", "Fast Responder", "Availability Master",
@@ -261,6 +272,47 @@ function ClinicView() {
   const [hospitalAccreditation, setHospitalAccreditation] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [matches, setMatches] = useState<CandidateMatch[]>([]);
+  const [matchesLoading, setMatchesLoading] = useState(false);
+
+  async function loadMatches(skills: string[], docs: string[]) {
+    if (skills.length === 0 && docs.length === 0) return;
+    setMatchesLoading(true);
+    const { createClient } = await import("@/lib/supabase/client");
+    const supabase = createClient();
+
+    const { data: staffProfiles } = await supabase
+      .from("staff_profiles")
+      .select("id, user_id, qualifications, skills, available_days");
+
+    if (!staffProfiles) { setMatchesLoading(false); return; }
+
+    const userIds = staffProfiles.map(p => p.user_id);
+    const { data: profileData } = await supabase
+      .from("profiles")
+      .select("id, full_name, email")
+      .in("id", userIds);
+
+    const scored = staffProfiles.map((sp) => {
+      const profileInfo = profileData?.find(p => p.id === sp.user_id);
+      const candidateSkills = [...(sp.skills || []), ...(sp.qualifications || [])];
+      const required = [...skills, ...docs];
+      const matches = required.filter(r =>
+        candidateSkills.some(cs => cs.toLowerCase().includes(r.toLowerCase()) || r.toLowerCase().includes(cs.toLowerCase()))
+      );
+      const matchScore = required.length > 0 ? Math.round((matches.length / required.length) * 100) : 50;
+      return {
+        ...sp,
+        matchScore,
+        profileName: profileInfo?.full_name || "Candidate",
+        profileEmail: profileInfo?.email || "",
+      };
+    });
+
+    const sorted = scored.sort((a, b) => b.matchScore - a.matchScore).slice(0, 5);
+    setMatches(sorted);
+    setMatchesLoading(false);
+  }
 
   async function handlePost() {
     if (!date || !startTime || !endTime || !rate) { setError("Please fill in date, times and rate."); return; }
@@ -314,9 +366,15 @@ function ClinicView() {
             <input className="rounded-2xl border border-slate-200 p-3" placeholder="$/hr e.g. 45" value={rate} onChange={(e) => setRate(e.target.value.replace(/[^0-9.]/g, ""))} />
           </div>
           <input className="w-full rounded-2xl border border-slate-200 p-3" placeholder="Hospital / facility (optional)" value={hospital} onChange={(e) => setHospital(e.target.value)} />
-          <ToggleGroup label="Required clinical skills" items={SKILLS} selected={selectedSkills} setSelected={setSelectedSkills} otherValue={otherSkill} setOtherValue={setOtherSkill} />
-          <ToggleGroup label="Practice management software" items={SOFTWARE} selected={selectedSoftware} setSelected={setSelectedSoftware} otherValue={otherSoftware} setOtherValue={setOtherSoftware} />
-          <ToggleGroup label="Required certificates & documents" items={CERTIFICATES} selected={selectedDocs} setSelected={setSelectedDocs} otherValue={otherDoc} setOtherValue={setOtherDoc} activeColour="emerald" />
+          <ToggleGroup label="Required clinical skills" items={SKILLS} selected={selectedSkills}
+            setSelected={(v) => { setSelectedSkills(v); loadMatches(v, selectedDocs); }}
+            otherValue={otherSkill} setOtherValue={setOtherSkill} />
+          <ToggleGroup label="Practice management software" items={SOFTWARE} selected={selectedSoftware}
+            setSelected={(v) => { setSelectedSoftware(v); loadMatches(selectedSkills, selectedDocs); }}
+            otherValue={otherSoftware} setOtherValue={setOtherSoftware} />
+          <ToggleGroup label="Required certificates & documents" items={CERTIFICATES} selected={selectedDocs}
+            setSelected={(v) => { setSelectedDocs(v); loadMatches(selectedSkills, v); }}
+            otherValue={otherDoc} setOtherValue={setOtherDoc} activeColour="emerald" />
           {selectedDocs.includes("Hospital Accreditation") && (
             <input className="w-full rounded-2xl border border-slate-200 p-3 text-sm" placeholder="Which hospital? e.g. PA Hospital, Mater" value={hospitalAccreditation} onChange={(e) => setHospitalAccreditation(e.target.value)} />
           )}
@@ -338,31 +396,48 @@ function ClinicView() {
       </Card>
 
       <Card className="p-6">
-        <h2 className="text-xl font-bold">Top candidate matches</h2>
-        <p className="mt-1 text-sm text-slate-500">Names and contact details remain protected until the shift is accepted.</p>
+        <h2 className="text-xl font-bold">Candidate matches</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          {matches.length > 0
+            ? "Names and contact details revealed after shift is accepted."
+            : "Select skills and documents to see matching candidates."}
+        </p>
+
         <div className="mt-5 space-y-4">
-          {[
-            { name: "Candidate #1", role: "Senior Dental Assistant", match: 96, rating: 4.9, distance: "8 min", rate: "$42/hr", badges: ["Fully Verified", "Paeds Pro", "Reliable Pro"] },
-            { name: "Candidate #2", role: "OHT / Hygienist", match: 91, rating: 4.8, distance: "18 min", rate: "$58/hr", badges: ["Fast Responder", "Clinic Favourite"] },
-            { name: "Candidate #3", role: "Reception + Steri", match: 84, rating: 4.7, distance: "22 min", rate: "$38/hr", badges: ["Front Desk Fluent", "Availability Master"] },
-          ].map((candidate) => (
-            <div key={candidate.name} className="rounded-3xl border border-slate-100 p-4">
-              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <div className="mb-2 flex flex-wrap gap-2">
-                    <Pill tone="teal">{candidate.match}% match</Pill>
-                    <Pill tone="amber">⭐ {candidate.rating}</Pill>
-                  </div>
-                  <h3 className="font-semibold">{candidate.name}</h3>
-                  <p className="text-sm text-slate-500">{candidate.role} • {candidate.distance} • {candidate.rate}</p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    {candidate.badges.map((badge) => <Pill key={badge} tone="green">{badge}</Pill>)}
-                  </div>
-                </div>
-                <Button className="bg-teal-700 text-white">Invite</Button>
-              </div>
+          {matchesLoading ? (
+            <div className="text-center text-slate-500 py-8">Finding matches...</div>
+          ) : matches.length === 0 ? (
+            <div className="rounded-3xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-400">
+              Matches will appear here as you fill in the shift requirements above.
             </div>
-          ))}
+          ) : (
+            matches.map((candidate, i) => (
+              <div key={candidate.id} className="rounded-3xl border border-slate-100 p-4">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <div className="mb-2 flex flex-wrap gap-2">
+                      <Pill tone="teal">{candidate.matchScore}% match</Pill>
+                    </div>
+                    <h3 className="font-semibold">Candidate #{i + 1}</h3>
+                    <p className="text-sm text-slate-500 mt-1">
+                      {candidate.qualifications?.slice(0, 2).join(", ") || "Profile incomplete"}
+                    </p>
+                    {candidate.skills && candidate.skills.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {candidate.skills.slice(0, 4).map((s) => (
+                          <Pill key={s} tone="green">{s}</Pill>
+                        ))}
+                        {candidate.skills.length > 4 && (
+                          <Pill tone="default">+{candidate.skills.length - 4} more</Pill>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <Button className="bg-teal-700 text-white">Invite</Button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </Card>
     </div>
