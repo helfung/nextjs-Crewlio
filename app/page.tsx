@@ -144,9 +144,9 @@ function CandidateView() {
     const { data: staffProfile } = await supabase
       .from("staff_profiles").select("id").eq("user_id", user.id).single();
     if (!staffProfile) { window.location.href = "/profile/setup"; return; }
-    const { error } = await supabase.from("bookings").insert({
+    const { error } = await supabase.from("bookings").upsert({
       shift_id: shiftId, staff_id: staffProfile.id, status: "accepted",
-    });
+    }, { onConflict: "shift_id,staff_id" });
     if (error) { alert(error.message); setAccepting(null); return; }
     window.location.href = "/bookings";
   }
@@ -534,10 +534,7 @@ export default function Page() {
                 <a href="/profile/edit" className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-teal-50 hover:text-teal-700 hover:border-teal-200">
                   ✏️ Edit profile
                 </a>
-                <a href="/profile/edit" className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-teal-50 hover:text-teal-700 hover:border-teal-200">
-                  ✏️ Edit profile
-                </a>
-              </>
+                </>
             )}
             {userRole === "clinic" && (
               <>
