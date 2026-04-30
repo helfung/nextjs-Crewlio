@@ -456,6 +456,7 @@ function AdminView() {
     recentUsers: any[];
     recentShifts: any[];
     incompleteProfiles: any[];
+    feedback: any[];
   } | null>(null);
 
   useEffect(() => {
@@ -499,6 +500,12 @@ function AdminView() {
         .eq("role", "staff")
         .is("full_name", null);
 
+      const { data: feedbackData } = await supabase
+        .from("feedback")
+        .select("id, type, message, status, created_at, user_id")
+        .order("created_at", { ascending: false })
+        .limit(10);
+
       let enrichedShifts: any[] = [];
       if (recentShifts && recentShifts.length > 0) {
         const clinicIds = recentShifts.map(s => s.clinic_id);
@@ -521,6 +528,7 @@ function AdminView() {
         recentUsers: recentUsers || [],
         recentShifts: enrichedShifts,
         incompleteProfiles: incompleteProfiles || [],
+        feedback: feedbackData || [],
       });
     }
     fetchAdminData();
@@ -627,6 +635,29 @@ function AdminView() {
               <div key={user.id} className="rounded-2xl border border-amber-100 bg-amber-50 p-3">
                 <p className="text-sm font-semibold text-amber-800">{user.email}</p>
                 <p className="text-xs text-amber-600 mt-0.5">No profile set up</p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Feedback & bug reports */}
+      {adminData.feedback.length > 0 && (
+        <Card className="p-6">
+          <h2 className="text-xl font-bold">💬 Feedback & bug reports</h2>
+          <p className="mt-1 text-sm text-slate-500">{adminData.feedback.length} submission{adminData.feedback.length > 1 ? "s" : ""} from users.</p>
+          <div className="mt-4 space-y-3">
+            {adminData.feedback.map((item: any) => (
+              <div key={item.id} className={"rounded-2xl border p-4 " + (item.type === "bug" ? "border-red-100 bg-red-50" : "border-slate-100 bg-white")}>
+                <div className="flex items-center justify-between mb-2">
+                  <span className={"rounded-full px-2 py-0.5 text-xs font-medium " + (item.type === "bug" ? "bg-red-100 text-red-700" : "bg-teal-50 text-teal-700")}>
+                    {item.type === "bug" ? "🐛 Bug" : "💬 Feedback"}
+                  </span>
+                  <span className="text-xs text-slate-400">
+                    {new Date(item.created_at).toLocaleDateString("en-AU", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                </div>
+                <p className="text-sm text-slate-700">{item.message}</p>
               </div>
             ))}
           </div>
