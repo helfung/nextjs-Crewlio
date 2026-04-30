@@ -1,4 +1,4 @@
-"use client";
+setdone"use client";
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -30,7 +30,7 @@ export default function SignupPage() {
       setError(error.message);
       setLoading(false);
     } else {
-      router.push("/profile/setup");
+      router.push(role === "staff" ? "/profile/setup" : "/employer/setup");
     }
   }
 
