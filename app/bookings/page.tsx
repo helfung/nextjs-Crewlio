@@ -22,10 +22,12 @@ export default function BookingsPage() {
   async function fetchBookings() {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    console.log("User:", user?.id);
+    if (!user) { setLoading(false); return; }
 
-    const { data: staffProfile } = await supabase
+    const { data: staffProfile, error: spError } = await supabase
       .from("staff_profiles").select("id").eq("user_id", user.id).single();
+    console.log("Staff profile:", staffProfile, spError);
 
     if (!staffProfile) { setLoading(false); return; }
 
@@ -35,7 +37,7 @@ export default function BookingsPage() {
       .eq("staff_id", staffProfile.id)
       .order("invited_at", { ascending: false });
 
-    if (error) console.error("Bookings error:", error);
+    console.log("Bookings data:", data, "Error:", error);
     setBookings((data as any) || []);
     setLoading(false);
   }
