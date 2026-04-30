@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 type Tab = "candidate" | "clinic" | "admin";
 
@@ -372,6 +372,24 @@ function AdminView() {
 
 export default function Page() {
   const [tab, setTab] = useState<Tab>("candidate");
+const [userName, setUserName] = useState<string>("");
+
+useEffect(() => {
+  async function fetchUser() {
+    const { createClient } = await import("@/lib/supabase/client");
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, email")
+        .eq("id", user.id)
+        .single();
+      setUserName(profile?.full_name || user.email || "");
+    }
+  }
+  fetchUser();
+}, []);
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50 p-4 text-slate-900 md:p-8">
@@ -380,6 +398,7 @@ export default function Page() {
   <div>
     <h1 className="text-3xl font-bold tracking-tight">Crewlio</h1>
     <p className="text-sm text-slate-500">Secure healthcare workforce matching</p>
+{userName && <p className="text-sm font-medium text-teal-700">👋 {userName}</p>}
   </div>
 
   <div className="flex flex-wrap items-center gap-2">
