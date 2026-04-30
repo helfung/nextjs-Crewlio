@@ -1,4 +1,4 @@
-setdone"use client";
+"use client";
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -11,7 +11,6 @@ export default function SignupPage() {
   const [role, setRole] = useState<"staff" | "clinic">("staff");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
@@ -32,20 +31,6 @@ export default function SignupPage() {
     } else {
       router.push(role === "staff" ? "/profile/setup" : "/employer/setup");
     }
-  }
-
-  if (done) {
-    return (
-      <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50 flex items-center justify-center p-4">
-        <div className="w-full max-w-md rounded-3xl border border-slate-100 bg-white shadow-sm p-8 text-center">
-          <div className="text-4xl mb-4">📬</div>
-          <h2 className="text-xl font-bold">Check your email</h2>
-          <p className="mt-2 text-sm text-slate-500">
-            We sent a confirmation link to <strong>{email}</strong>. Click it to activate your account.
-          </p>
-        </div>
-      </main>
-    );
   }
 
   return (
