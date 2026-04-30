@@ -105,6 +105,40 @@ export default function ShiftsPage() {
     setUpdatingBooking(bookingId);
     const supabase = createClient();
     await supabase.from("bookings").update({ status }).eq("id", bookingId);
+
+    // Send email notification
+    try {
+      const booking = bookings.find(b => b.id === bookingId);
+      const shift = shifts.find(s => s.id === booking?.shift_id);
+      if (booking && shift) {
+        const { data: staffData } = await supabase
+          .from("staff_profiles").select("user_id").eq("id", booking.staff_id).single();
+        const { data: profileData } = await supabase
+          .from("profiles").select("email").eq("id", staffData?.user_id).single();
+
+        if (profileData?.email) {
+          await fetch("/api/notify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              type: status === "confirmed" ? "booking_confirmed" : "booking_declined",
+              to: profileData.email,
+              data: {
+                role: shift.role_required,
+                date: new Date(shift.shift_date).toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long" }),
+                time: shift.start_time?.slice(0, 5) + " – " + shift.end_time?.slice(0, 5),
+                rate: shift.rate,
+                clinic: "",
+                address: shift.hospital || "",
+              },
+            }),
+          });
+        }
+      }
+    } catch (e) {
+      console.error("Email notification failed:", e);
+    }
+
     await fetchData();
     setUpdatingBooking(null);
   }
