@@ -35,7 +35,7 @@ export default function BookingsPage() {
       .from("bookings")
       .select("id, status, invited_at, shift_id, shifts(*, clinic_profiles(clinic_name, suburb, address, phone))")
       .eq("staff_id", staffProfile.id)
-      .order("invited_at", { ascending: false });
+      .order("id", { ascending: false });
 
     console.log("Bookings data:", data, "Error:", error);
     setBookings((data as any) || []);
