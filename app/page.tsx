@@ -534,6 +534,9 @@ export default function Page() {
                 <a href="/profile/edit" className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-teal-50 hover:text-teal-700 hover:border-teal-200">
                   ✏️ Edit profile
                 </a>
+                <a href="/profile/edit" className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-teal-50 hover:text-teal-700 hover:border-teal-200">
+                  ✏️ Edit profile
+                </a>
               </>
             )}
             {userRole === "clinic" && (
