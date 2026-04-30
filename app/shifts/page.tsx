@@ -40,19 +40,15 @@ export default function ShiftsPage() {
   const [expandedShift, setExpandedShift] = useState<string | null>(null);
   const [updatingBooking, setUpdatingBooking] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchShifts();
-  }, []);
+  useEffect(() => { fetchShifts(); }, []);
 
   async function fetchShifts() {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-
     const { data: clinicProfile } = await supabase
       .from("clinic_profiles").select("id").eq("user_id", user.id).single();
     if (!clinicProfile) return;
-
     const { data } = await supabase
       .from("shifts")
       .select(`
@@ -68,7 +64,6 @@ export default function ShiftsPage() {
       `)
       .eq("clinic_id", clinicProfile.id)
       .order("shift_date", { ascending: false });
-
     setShifts((data as any) || []);
     setLoading(false);
   }
@@ -105,7 +100,6 @@ export default function ShiftsPage() {
     <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50 p-4 md:p-8">
       <div className="mx-auto max-w-4xl">
 
-        {/* Header */}
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Shift dashboard</h1>
@@ -116,7 +110,6 @@ export default function ShiftsPage() {
           </Link>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           {[
             { label: "Total shifts", value: stats.total, colour: "text-slate-700" },
@@ -131,7 +124,6 @@ export default function ShiftsPage() {
           ))}
         </div>
 
-        {/* Shifts list */}
         {loading ? (
           <div className="text-center text-slate-500 py-12">Loading shifts...</div>
         ) : shifts.length === 0 ? (
@@ -147,12 +139,8 @@ export default function ShiftsPage() {
           <div className="space-y-4">
             {shifts.map((shift) => {
               const isExpanded = expandedShift === shift.id;
-              const acceptedBookings = shift.bookings.filter(b => b.status === "accepted");
-              const confirmedBookings = shift.bookings.filter(b => b.status === "confirmed");
-
               return (
                 <div key={shift.id} className="rounded-3xl border border-slate-100 bg-white shadow-sm overflow-hidden">
-                  {/* Shift header */}
                   <div className="p-5">
                     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                       <div className="flex-1">
@@ -163,9 +151,9 @@ export default function ShiftsPage() {
                           {shift.urgent && (
                             <span className="rounded-full px-3 py-1 text-xs font-medium bg-red-50 text-red-700">Urgent</span>
                           )}
-                          {acceptedBookings.length > 0 && (
+                          {shift.bookings.filter(b => b.status === "accepted").length > 0 && (
                             <span className="rounded-full px-3 py-1 text-xs font-medium bg-teal-50 text-teal-700">
-                              {acceptedBookings.length} application{acceptedBookings.length > 1 ? "s" : ""}
+                              {shift.bookings.filter(b => b.status === "accepted").length} application{shift.bookings.filter(b => b.status === "accepted").length > 1 ? "s" : ""}
                             </span>
                           )}
                         </div>
@@ -186,33 +174,36 @@ export default function ShiftsPage() {
                           </div>
                         )}
                       </div>
-                      <div className="flex items-center gap-3">
-                        <div className="text-right">
-                          <div className="text-xl font-bold text-teal-700">${shift.rate}/hr</div>
-                        </div>
-                        <div className="flex gap-2">
-                          {shift.bookings.length > 0 && (
-                            <button
-                              onClick={() => setExpandedShift(isExpanded ? null : shift.id)}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <div className="text-xl font-bold text-teal-700 mr-2">${shift.rate}/hr</div>
+                        {shift.bookings.length > 0 && (
+                          <button
+                            onClick={() => setExpandedShift(isExpanded ? null : shift.id)}
+                            className="rounded-2xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
+                          >
+                            {isExpanded ? "Hide" : `${shift.bookings.length} booking${shift.bookings.length > 1 ? "s" : ""}`}
+                          </button>
+                        )}
+                        {shift.status === "open" && (
+                          <>
+                            
+                              href={`/shifts/edit?id=${shift.id}`}
                               className="rounded-2xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
                             >
-                              {isExpanded ? "Hide" : `View ${shift.bookings.length} booking${shift.bookings.length > 1 ? "s" : ""}`}
-                            </button>
-                          )}
-                          {shift.status === "open" && (
+                              Edit
+                            </a>
                             <button
                               onClick={() => cancelShift(shift.id)}
                               className="rounded-2xl border border-red-100 px-3 py-2 text-sm font-semibold text-red-500 hover:bg-red-50"
                             >
                               Cancel
                             </button>
-                          )}
-                        </div>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
 
-                  {/* Bookings panel */}
                   {isExpanded && shift.bookings.length > 0 && (
                     <div className="border-t border-slate-100 bg-slate-50 p-5">
                       <h4 className="text-sm font-semibold text-slate-700 mb-3">Bookings</h4>
