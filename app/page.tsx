@@ -40,7 +40,8 @@ const SOFTWARE = [
 const CERTIFICATES = [
   "Cert III", "Cert IV", "Radiation Licence", "Blue Card", "CPR",
   "First Aid", "Drivers Licence", "Immunisations", "Hospital Accreditation",
-  "Orofacial Myology", "Sedation & GA Support Training", "Infection Control Certification", "Other",
+  "AHPRA Registration", "Orofacial Myology", "Sedation & GA Support Training",
+  "Infection Control Certification", "Other",
 ];
 
 function Pill({ children, tone = "default" }: { children: React.ReactNode; tone?: "default" | "green" | "red" | "amber" | "teal" }) {
@@ -433,6 +434,7 @@ export default function Page() {
           .from("profiles").select("full_name, email, role").eq("id", user.id).single();
         setUserName(profile?.full_name || user.email || "");
         setUserRole(profile?.role || "");
+        if (profile?.role === "clinic") setTab("clinic");
       }
     }
     fetchUser();
@@ -448,18 +450,28 @@ export default function Page() {
             {userName && <p className="text-sm font-medium text-teal-700">👋 {userName}</p>}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button onClick={() => setTab("candidate")} className={tab === "candidate" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}>Candidate</Button>
-            <Button onClick={() => setTab("clinic")} className={tab === "clinic" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}>Clinic</Button>
-            <Button onClick={() => setTab("admin")} className={tab === "admin" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}>Admin</Button>
             {userRole === "staff" && (
-              <a href="/bookings" className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-teal-50 hover:text-teal-700 hover:border-teal-200">
-                📅 My bookings
-              </a>
+              <>
+                <Button onClick={() => setTab("candidate")} className={tab === "candidate" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}>Shifts</Button>
+                <a href="/bookings" className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-teal-50 hover:text-teal-700 hover:border-teal-200">
+                  📅 Accepted shifts
+                </a>
+              </>
             )}
             {userRole === "clinic" && (
-              <a href="/shifts" className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-teal-50 hover:text-teal-700 hover:border-teal-200">
-                📋 Posted shifts
-              </a>
+              <>
+                <Button onClick={() => setTab("clinic")} className={tab === "clinic" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}>Post a shift</Button>
+                <a href="/shifts" className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-teal-50 hover:text-teal-700 hover:border-teal-200">
+                  📋 Posted shifts
+                </a>
+              </>
+            )}
+            {userRole === "admin" && (
+              <>
+                <Button onClick={() => setTab("candidate")} className={tab === "candidate" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}>Candidate</Button>
+                <Button onClick={() => setTab("clinic")} className={tab === "clinic" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}>Clinic</Button>
+                <Button onClick={() => setTab("admin")} className={tab === "admin" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}>Admin</Button>
+              </>
             )}
             <button
               onClick={async () => {
