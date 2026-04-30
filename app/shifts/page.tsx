@@ -63,7 +63,7 @@ export default function ShiftsPage() {
         )
       `)
       .eq("clinic_id", clinicProfile.id)
-      .order("shift_date", { ascending: false });
+      .order("created_at", { ascending: false });
     setShifts((data as any) || []);
     setLoading(false);
   }
