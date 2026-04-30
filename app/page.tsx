@@ -510,18 +510,23 @@ function AdminView() {
 export default function Page() {
   const [tab, setTab] = useState<Tab>("candidate");
   const [userName, setUserName] = useState<string>("");
+const [userRole, setUserRole] = useState<string>("");
 
   useEffect(() => {
     async function fetchUser() {
-      const { createClient } = await import("@/lib/supabase/client");
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase
-          .from("profiles").select("full_name, email").eq("id", user.id).single();
-        setUserName(profile?.full_name || user.email || "");
-      }
-    }
+  const { createClient } = await import("@/lib/supabase/client");
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name, email, role")
+      .eq("id", user.id)
+      .single();
+    setUserName(profile?.full_name || user.email || "");
+    setUserRole(profile?.role || "");
+  }
+}
     fetchUser();
   }, []);
 
@@ -535,18 +540,31 @@ export default function Page() {
             {userName && <p className="text-sm font-medium text-teal-700">👋 {userName}</p>}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Button onClick={() => setTab("candidate")} className={tab === "candidate" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}>Candidate</Button>
-            <Button onClick={() => setTab("clinic")} className={tab === "clinic" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}>Clinic</Button>
-            <Button onClick={() => setTab("admin")} className={tab === "admin" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}>Admin</Button>
-            <button
-              onClick={async () => {
-                const { createClient } = await import("@/lib/supabase/client");
-                const supabase = createClient();
-                await supabase.auth.signOut();
-                window.location.href = "/auth/login";
-              }}
-              className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-red-50 hover:text-red-600 hover:border-red-200"
-            >
+  <Button onClick={() => setTab("candidate")} className={tab === "candidate" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}>Candidate</Button>
+  <Button onClick={() => setTab("clinic")} className={tab === "clinic" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}>Clinic</Button>
+  <Button onClick={() => setTab("admin")} className={tab === "admin" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}>Admin</Button>
+  {userRole === "staff" && (
+    <a href="/bookings" className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-teal-50 hover:text-teal-700 hover:border-teal-200">
+      My bookings
+    </a>
+  )}
+  {userRole === "clinic" && (
+    <a href="/shifts" className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-teal-50 hover:text-teal-700 hover:border-teal-200">
+      Posted shifts
+    </a>
+  )}
+  <button
+    onClick={async () => {
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      await supabase.auth.signOut();
+      window.location.href = "/auth/login";
+    }}
+    className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+  >
+    Sign out
+  </button>
+</div>
               Sign out
             </button>
           </div>
