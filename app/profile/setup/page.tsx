@@ -133,7 +133,7 @@ export default function ProfileSetupPage() {
         credentialled_hospitals: hospitalAccreditations
           ? hospitalAccreditations.split(",").map(h => h.trim())
           : [],
-      });
+      }, { onConflict: "user_id" });
 
     if (staffError) { setError(staffError.message); setLoading(false); return; }
 
