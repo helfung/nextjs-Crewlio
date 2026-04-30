@@ -1,4 +1,3 @@
-cat > app/page.tsx << 'EOF'
 "use client";
 
 import type React from "react";
@@ -520,4 +519,3 @@ export default function Page() {
     </main>
   );
 }
-EOF
