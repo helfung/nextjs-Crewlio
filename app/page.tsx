@@ -377,32 +377,43 @@ export default function Page() {
     <main className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50 p-4 text-slate-900 md:p-8">
       <div className="mx-auto max-w-7xl">
         <header className="mb-6 flex flex-col gap-4 rounded-3xl border border-white bg-white/90 p-4 shadow-sm md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Crewlio</h1>
-            <p className="text-sm text-slate-500">Secure healthcare workforce matching</p>
-          </div>
+  <div>
+    <h1 className="text-3xl font-bold tracking-tight">Crewlio</h1>
+    <p className="text-sm text-slate-500">Secure healthcare workforce matching</p>
+  </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Button
-              onClick={() => setTab("candidate")}
-              className={tab === "candidate" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}
-            >
-              Candidate
-            </Button>
-            <Button
-              onClick={() => setTab("clinic")}
-              className={tab === "clinic" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}
-            >
-              Clinic
-            </Button>
-            <Button
-              onClick={() => setTab("admin")}
-              className={tab === "admin" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}
-            >
-              Admin
-            </Button>
-          </div>
-        </header>
+  <div className="flex flex-wrap items-center gap-2">
+    <Button
+      onClick={() => setTab("candidate")}
+      className={tab === "candidate" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}
+    >
+      Candidate
+    </Button>
+    <Button
+      onClick={() => setTab("clinic")}
+      className={tab === "clinic" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}
+    >
+      Clinic
+    </Button>
+    <Button
+      onClick={() => setTab("admin")}
+      className={tab === "admin" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}
+    >
+      Admin
+    </Button>
+    <button
+      onClick={async () => {
+        const { createClient } = await import("@/lib/supabase/client");
+        const supabase = createClient();
+        await supabase.auth.signOut();
+        window.location.href = "/auth/login";
+      }}
+      className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+    >
+      Sign out
+    </button>
+  </div>
+</header>
 
         {tab === "candidate" && <CandidateView />}
         {tab === "clinic" && <ClinicView />}
