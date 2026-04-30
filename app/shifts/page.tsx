@@ -4,21 +4,6 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
 
-type Booking = {
-  id: string;
-  status: string;
-  staff_profiles: {
-    user_id: string;
-    qualifications: string[];
-    skills: string[];
-    profiles: {
-      full_name: string;
-      email: string;
-      phone: string;
-    };
-  };
-};
-
 type Shift = {
   id: string;
   role_required: string;
@@ -31,40 +16,88 @@ type Shift = {
   hospital: string;
   required_skills: string[];
   required_documents: string[];
-  bookings: Booking[];
+};
+
+type Booking = {
+  id: string;
+  shift_id: string;
+  status: string;
+  staff_id: string;
+  staff_name?: string;
+  staff_email?: string;
+  qualifications?: string[];
 };
 
 export default function ShiftsPage() {
   const [shifts, setShifts] = useState<Shift[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedShift, setExpandedShift] = useState<string | null>(null);
   const [updatingBooking, setUpdatingBooking] = useState<string | null>(null);
 
-  useEffect(() => { fetchShifts(); }, []);
+  useEffect(() => { fetchData(); }, []);
 
-  async function fetchShifts() {
+  async function fetchData() {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+
     const { data: clinicProfile } = await supabase
       .from("clinic_profiles").select("id").eq("user_id", user.id).single();
-    if (!clinicProfile) return;
-    const { data } = await supabase
+    if (!clinicProfile) { setLoading(false); return; }
+
+    // Fetch shifts
+    const { data: shiftsData, error: shiftsError } = await supabase
       .from("shifts")
-      .select(`
-        id, role_required, shift_date, start_time, end_time, rate,
-        urgent, status, hospital, required_skills, required_documents,
-        bookings (
-          id, status,
-          staff_profiles (
-            user_id, qualifications, skills,
-            profiles ( full_name, email, phone )
-          )
-        )
-      `)
+      .select("id, role_required, shift_date, start_time, end_time, rate, urgent, status, hospital, required_skills, required_documents")
       .eq("clinic_id", clinicProfile.id)
-      .order("created_at", { ascending: false });
-    setShifts((data as any) || []);
+      .order("id", { ascending: false });
+
+    if (shiftsError) { console.error("Shifts error:", shiftsError); }
+    const fetchedShifts = shiftsData || [];
+    setShifts(fetchedShifts);
+
+    if (fetchedShifts.length > 0) {
+      const shiftIds = fetchedShifts.map(s => s.id);
+
+      // Fetch bookings for these shifts
+      const { data: bookingsData, error: bookingsError } = await supabase
+        .from("bookings")
+        .select("id, shift_id, status, staff_id")
+        .in("shift_id", shiftIds);
+
+      if (bookingsError) { console.error("Bookings error:", bookingsError); }
+
+      const fetchedBookings = bookingsData || [];
+
+      // Fetch staff profiles and profiles for each booking
+      if (fetchedBookings.length > 0) {
+        const staffIds = fetchedBookings.map(b => b.staff_id);
+        const { data: staffData } = await supabase
+          .from("staff_profiles")
+          .select("id, user_id, qualifications")
+          .in("id", staffIds);
+
+        const userIds = (staffData || []).map(s => s.user_id);
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("id, full_name, email")
+          .in("id", userIds);
+
+        const enriched = fetchedBookings.map(b => {
+          const staff = staffData?.find(s => s.id === b.staff_id);
+          const profile = profileData?.find(p => p.id === staff?.user_id);
+          return {
+            ...b,
+            staff_name: profile?.full_name,
+            staff_email: profile?.email,
+            qualifications: staff?.qualifications,
+          };
+        });
+        setBookings(enriched);
+      }
+    }
+
     setLoading(false);
   }
 
@@ -72,14 +105,14 @@ export default function ShiftsPage() {
     setUpdatingBooking(bookingId);
     const supabase = createClient();
     await supabase.from("bookings").update({ status }).eq("id", bookingId);
-    await fetchShifts();
+    await fetchData();
     setUpdatingBooking(null);
   }
 
   async function cancelShift(shiftId: string) {
     const supabase = createClient();
     await supabase.from("shifts").update({ status: "cancelled" }).eq("id", shiftId);
-    await fetchShifts();
+    await fetchData();
   }
 
   const statusColour = (status: string) => {
@@ -93,7 +126,7 @@ export default function ShiftsPage() {
     total: shifts.length,
     open: shifts.filter(s => s.status === "open").length,
     filled: shifts.filter(s => s.status === "filled").length,
-    pending: shifts.reduce((acc, s) => acc + s.bookings.filter(b => b.status === "accepted").length, 0),
+    pending: bookings.filter(b => b.status === "accepted").length,
   };
 
   return (
@@ -117,7 +150,7 @@ export default function ShiftsPage() {
             { label: "Awaiting confirmation", value: stats.pending, colour: "text-teal-600" },
           ].map(({ label, value, colour }) => (
             <div key={label} className="rounded-3xl border border-slate-100 bg-white shadow-sm p-5">
-              <div className={`text-3xl font-bold ${colour}`}>{value}</div>
+              <div className={"text-3xl font-bold " + colour}>{value}</div>
               <div className="text-sm text-slate-500 mt-1">{label}</div>
             </div>
           ))}
@@ -138,7 +171,9 @@ export default function ShiftsPage() {
           <div className="space-y-4">
             {shifts.map((shift) => {
               const isExpanded = expandedShift === shift.id;
+              const shiftBookings = bookings.filter(b => b.shift_id === shift.id);
               const editHref = "/shifts/edit?id=" + shift.id;
+
               return (
                 <div key={shift.id} className="rounded-3xl border border-slate-100 bg-white shadow-sm overflow-hidden">
                   <div className="p-5">
@@ -151,16 +186,16 @@ export default function ShiftsPage() {
                           {shift.urgent && (
                             <span className="rounded-full px-3 py-1 text-xs font-medium bg-red-50 text-red-700">Urgent</span>
                           )}
-                          {shift.bookings.filter(b => b.status === "accepted").length > 0 && (
+                          {shiftBookings.filter(b => b.status === "accepted").length > 0 && (
                             <span className="rounded-full px-3 py-1 text-xs font-medium bg-teal-50 text-teal-700">
-                              {shift.bookings.filter(b => b.status === "accepted").length} application{shift.bookings.filter(b => b.status === "accepted").length > 1 ? "s" : ""}
+                              {shiftBookings.filter(b => b.status === "accepted").length} application{shiftBookings.filter(b => b.status === "accepted").length > 1 ? "s" : ""}
                             </span>
                           )}
                         </div>
                         <h3 className="font-semibold text-lg">{shift.role_required}</h3>
                         <p className="text-sm text-slate-500 mt-1">
                           {new Date(shift.shift_date).toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}
-                          {" • "}{shift.start_time?.slice(0, 5)} {" – "} {shift.end_time?.slice(0, 5)}
+                          {" • "}{shift.start_time?.slice(0, 5)} – {shift.end_time?.slice(0, 5)}
                           {shift.hospital ? " • " + shift.hospital : ""}
                         </p>
                         {shift.required_skills?.length > 0 && (
@@ -176,12 +211,12 @@ export default function ShiftsPage() {
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
                         <div className="text-xl font-bold text-teal-700 mr-2">${shift.rate}/hr</div>
-                        {shift.bookings.length > 0 && (
+                        {shiftBookings.length > 0 && (
                           <button
                             onClick={() => setExpandedShift(isExpanded ? null : shift.id)}
                             className="rounded-2xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50"
                           >
-                            {isExpanded ? "Hide" : shift.bookings.length + " booking" + (shift.bookings.length > 1 ? "s" : "")}
+                            {isExpanded ? "Hide" : shiftBookings.length + " booking" + (shiftBookings.length > 1 ? "s" : "")}
                           </button>
                         )}
                         {shift.status === "open" && (
@@ -201,68 +236,60 @@ export default function ShiftsPage() {
                     </div>
                   </div>
 
-                  {isExpanded && shift.bookings.length > 0 && (
+                  {isExpanded && shiftBookings.length > 0 && (
                     <div className="border-t border-slate-100 bg-slate-50 p-5">
                       <h4 className="text-sm font-semibold text-slate-700 mb-3">Bookings</h4>
                       <div className="space-y-3">
-                        {shift.bookings.map((booking) => {
-                          const staff = booking.staff_profiles;
-                          const profile = (staff as any)?.profiles;
-                          return (
-                            <div key={booking.id} className="rounded-2xl bg-white border border-slate-100 p-4">
-                              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                                <div>
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className={"rounded-full px-2 py-0.5 text-xs font-medium " + statusColour(booking.status)}>
-                                      {booking.status}
-                                    </span>
+                        {shiftBookings.map((booking) => (
+                          <div key={booking.id} className="rounded-2xl bg-white border border-slate-100 p-4">
+                            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                              <div>
+                                <span className={"rounded-full px-2 py-0.5 text-xs font-medium " + statusColour(booking.status)}>
+                                  {booking.status}
+                                </span>
+                                <p className="font-semibold text-sm mt-2">
+                                  {booking.status === "confirmed" ? booking.staff_name || "Confirmed candidate" : "Anonymous candidate"}
+                                </p>
+                                {booking.status === "confirmed" && booking.staff_email && (
+                                  <p className="text-xs text-slate-500 mt-0.5">{booking.staff_email}</p>
+                                )}
+                                {booking.qualifications && booking.qualifications.length > 0 && (
+                                  <div className="mt-2 flex flex-wrap gap-1">
+                                    {booking.qualifications.slice(0, 3).map((q: string) => (
+                                      <span key={q} className="rounded-full px-2 py-0.5 text-xs bg-emerald-50 text-emerald-700">{q}</span>
+                                    ))}
                                   </div>
-                                  <p className="font-semibold text-sm">
-                                    {booking.status === "confirmed" ? profile?.full_name || "Confirmed candidate" : "Anonymous candidate"}
-                                  </p>
-                                  {booking.status === "confirmed" && (
-                                    <p className="text-xs text-slate-500 mt-0.5">
-                                      {profile?.email}{profile?.phone ? " • " + profile.phone : ""}
-                                    </p>
-                                  )}
-                                  {staff?.qualifications?.length > 0 && (
-                                    <div className="mt-2 flex flex-wrap gap-1">
-                                      {staff.qualifications.slice(0, 3).map((q: string) => (
-                                        <span key={q} className="rounded-full px-2 py-0.5 text-xs bg-emerald-50 text-emerald-700">{q}</span>
-                                      ))}
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="flex gap-2">
-                                  {booking.status === "accepted" && (
-                                    <>
-                                      <button
-                                        onClick={() => updateBookingStatus(booking.id, "confirmed")}
-                                        disabled={updatingBooking === booking.id}
-                                        className="rounded-2xl bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
-                                      >
-                                        {updatingBooking === booking.id ? "..." : "Confirm"}
-                                      </button>
-                                      <button
-                                        onClick={() => updateBookingStatus(booking.id, "declined")}
-                                        disabled={updatingBooking === booking.id}
-                                        className="rounded-2xl border border-red-100 px-4 py-2 text-sm font-semibold text-red-500 hover:bg-red-50 disabled:opacity-50"
-                                      >
-                                        Decline
-                                      </button>
-                                    </>
-                                  )}
-                                  {booking.status === "confirmed" && (
-                                    <span className="rounded-2xl bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700">✓ Confirmed</span>
-                                  )}
-                                  {booking.status === "declined" && (
-                                    <span className="rounded-2xl bg-red-50 px-4 py-2 text-sm font-semibold text-red-500">Declined</span>
-                                  )}
-                                </div>
+                                )}
+                              </div>
+                              <div className="flex gap-2">
+                                {booking.status === "accepted" && (
+                                  <>
+                                    <button
+                                      onClick={() => updateBookingStatus(booking.id, "confirmed")}
+                                      disabled={updatingBooking === booking.id}
+                                      className="rounded-2xl bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                                    >
+                                      {updatingBooking === booking.id ? "..." : "Confirm"}
+                                    </button>
+                                    <button
+                                      onClick={() => updateBookingStatus(booking.id, "declined")}
+                                      disabled={updatingBooking === booking.id}
+                                      className="rounded-2xl border border-red-100 px-4 py-2 text-sm font-semibold text-red-500 hover:bg-red-50 disabled:opacity-50"
+                                    >
+                                      Decline
+                                    </button>
+                                  </>
+                                )}
+                                {booking.status === "confirmed" && (
+                                  <span className="rounded-2xl bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700">✓ Confirmed</span>
+                                )}
+                                {booking.status === "declined" && (
+                                  <span className="rounded-2xl bg-red-50 px-4 py-2 text-sm font-semibold text-red-500">Declined</span>
+                                )}
                               </div>
                             </div>
-                          );
-                        })}
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}
