@@ -78,10 +78,8 @@ function ToggleGroup({ label, items, selected, setSelected, otherValue, setOther
   function toggleItem(item: string) {
     setSelected(selected.includes(item) ? selected.filter((i) => i !== item) : [...selected, item]);
   }
-
   const activeBg = activeColour === "emerald" ? "bg-emerald-700 text-white" : "bg-teal-700 text-white";
   const inactiveBg = activeColour === "emerald" ? "bg-emerald-50 text-emerald-700" : "bg-teal-50 text-teal-700";
-
   return (
     <div>
       <div className="mb-2 text-sm font-semibold">{label}</div>
@@ -131,27 +129,13 @@ function CandidateView() {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-
     const { data: staffProfile } = await supabase
       .from("staff_profiles").select("id").eq("user_id", user.id).single();
-
-    if (!staffProfile) {
-      window.location.href = "/profile/setup";
-      return;
-    }
-
+    if (!staffProfile) { window.location.href = "/profile/setup"; return; }
     const { error } = await supabase.from("bookings").insert({
-      shift_id: shiftId,
-      staff_id: staffProfile.id,
-      status: "accepted",
+      shift_id: shiftId, staff_id: staffProfile.id, status: "accepted",
     });
-
-    if (error) {
-      alert(error.message);
-      setAccepting(null);
-      return;
-    }
-
+    if (error) { alert(error.message); setAccepting(null); return; }
     window.location.href = "/bookings";
   }
 
@@ -166,9 +150,7 @@ function CandidateView() {
                 {shifts.some(s => s.urgent) && <Pill tone="amber">{shifts.filter(s => s.urgent).length} urgent</Pill>}
               </div>
               <h2 className="text-3xl font-bold">Available shifts</h2>
-              <p className="mt-2 max-w-xl text-teal-50">
-                Crewlio matches you with shifts based on availability, certificates, pay preferences and travel range.
-              </p>
+              <p className="mt-2 max-w-xl text-teal-50">Crewlio matches you with shifts based on availability, certificates, pay preferences and travel range.</p>
             </div>
             <Button className="bg-white text-teal-800">Update availability</Button>
           </div>
@@ -177,7 +159,6 @@ function CandidateView() {
         <div>
           <h2 className="mb-1 text-xl font-bold">Open shifts</h2>
           <p className="mb-4 text-sm text-slate-500">Accept a shift to lock in your booking.</p>
-
           {loading ? (
             <div className="text-center text-slate-500 py-12">Loading shifts...</div>
           ) : shifts.length === 0 ? (
@@ -204,9 +185,7 @@ function CandidateView() {
                       </p>
                       {shift.required_skills?.length > 0 && (
                         <div className="mt-3 flex flex-wrap gap-2">
-                          {shift.required_skills.map((tag) => (
-                            <Pill key={tag} tone="green">{tag}</Pill>
-                          ))}
+                          {shift.required_skills.map((tag) => <Pill key={tag} tone="green">{tag}</Pill>)}
                         </div>
                       )}
                     </div>
@@ -214,10 +193,7 @@ function CandidateView() {
                       <div className="text-right">
                         <div className="text-2xl font-bold text-teal-700">${shift.rate}/hr</div>
                       </div>
-                      <Button
-                        className={`text-white ${accepting === shift.id ? "bg-teal-400" : "bg-teal-700"}`}
-                        onClick={() => acceptShift(shift.id)}
-                      >
+                      <Button className={`text-white ${accepting === shift.id ? "bg-teal-400" : "bg-teal-700"}`} onClick={() => acceptShift(shift.id)}>
                         {accepting === shift.id ? "Accepting..." : "Accept shift"}
                       </Button>
                     </div>
@@ -244,7 +220,6 @@ function CandidateView() {
             Upload your radiation licence to unlock Credential Complete+.
           </div>
         </Card>
-
         <Card className="p-5">
           <h2 className="text-xl font-bold">Badges</h2>
           <div className="mt-4 grid grid-cols-2 gap-3">
@@ -255,7 +230,6 @@ function CandidateView() {
             ))}
           </div>
         </Card>
-
         <Card className="p-5">
           <h2 className="text-xl font-bold">Secure documents</h2>
           <div className="mt-4 space-y-3 text-sm">
@@ -288,23 +262,14 @@ function ClinicView() {
   const [error, setError] = useState("");
 
   async function handlePost() {
-    if (!date || !startTime || !endTime || !rate) {
-      setError("Please fill in date, times and rate.");
-      return;
-    }
-    setLoading(true);
-    setError("");
+    if (!date || !startTime || !endTime || !rate) { setError("Please fill in date, times and rate."); return; }
+    setLoading(true); setError("");
     const { createClient } = await import("@/lib/supabase/client");
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    const { data: clinicProfile } = await supabase
-      .from("clinic_profiles").select("id").eq("user_id", user.id).single();
-    if (!clinicProfile) {
-      setError("Clinic profile not found.");
-      setLoading(false);
-      return;
-    }
+    const { data: clinicProfile } = await supabase.from("clinic_profiles").select("id").eq("user_id", user.id).single();
+    if (!clinicProfile) { setError("Clinic profile not found."); setLoading(false); return; }
 
     const finalSkills = [
       ...selectedSkills.filter(s => s !== "Other"),
@@ -312,34 +277,19 @@ function ClinicView() {
       ...selectedSoftware.filter(s => s !== "Other"),
       ...(selectedSoftware.includes("Other") && otherSoftware ? [otherSoftware] : []),
     ];
-
     const finalDocs = [
       ...selectedDocs.filter(d => d !== "Other" && d !== "Hospital Accreditation"),
-      ...(selectedDocs.includes("Hospital Accreditation") && hospitalAccreditation
-        ? [`Hospital Accreditation: ${hospitalAccreditation}`]
-        : selectedDocs.includes("Hospital Accreditation") ? ["Hospital Accreditation"] : []),
+      ...(selectedDocs.includes("Hospital Accreditation") ? [`Hospital Accreditation${hospitalAccreditation ? `: ${hospitalAccreditation}` : ""}`] : []),
       ...(selectedDocs.includes("Other") && otherDoc ? [otherDoc] : []),
     ];
 
     const { error: shiftError } = await supabase.from("shifts").insert({
-      clinic_id: clinicProfile.id,
-      role_required: role,
-      shift_date: date,
-      start_time: startTime,
-      end_time: endTime,
-      rate: parseFloat(rate),
-      hospital,
-      urgent,
-      required_skills: finalSkills,
-      required_documents: finalDocs,
-      status: "open",
-      broadcast: true,
+      clinic_id: clinicProfile.id, role_required: role, shift_date: date,
+      start_time: startTime, end_time: endTime, rate: parseFloat(rate),
+      hospital, urgent, required_skills: finalSkills, required_documents: finalDocs,
+      status: "open", broadcast: true,
     });
-    if (shiftError) {
-      setError(shiftError.message);
-      setLoading(false);
-      return;
-    }
+    if (shiftError) { setError(shiftError.message); setLoading(false); return; }
     window.location.href = "/shifts";
   }
 
@@ -352,15 +302,9 @@ function ClinicView() {
           <div className="grid gap-3 md:grid-cols-2">
             <input className="rounded-2xl border border-slate-200 p-3" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             <select className="rounded-2xl border border-slate-200 p-3" value={role} onChange={(e) => setRole(e.target.value)}>
-              <option>Chairside Assistant</option>
-              <option>Receptionist</option>
-              <option>Steri</option>
-              <option>OHT / Hygienist</option>
-              <option>Clinical Team Leader</option>
-              <option>Practice Manager</option>
-              <option>Front Office Coordinator</option>
-              <option>Dental Therapist</option>
-              <option>Dental Prosthetist</option>
+              <option>Chairside Assistant</option><option>Receptionist</option><option>Steri</option>
+              <option>OHT / Hygienist</option><option>Clinical Team Leader</option><option>Practice Manager</option>
+              <option>Front Office Coordinator</option><option>Dental Therapist</option><option>Dental Prosthetist</option>
             </select>
           </div>
           <div className="grid gap-3 md:grid-cols-3">
@@ -369,56 +313,23 @@ function ClinicView() {
             <input className="rounded-2xl border border-slate-200 p-3" placeholder="$/hr e.g. 45" value={rate} onChange={(e) => setRate(e.target.value.replace(/[^0-9.]/g, ""))} />
           </div>
           <input className="w-full rounded-2xl border border-slate-200 p-3" placeholder="Hospital / facility (optional)" value={hospital} onChange={(e) => setHospital(e.target.value)} />
-
-          <ToggleGroup
-            label="Required clinical skills"
-            items={SKILLS}
-            selected={selectedSkills}
-            setSelected={setSelectedSkills}
-            otherValue={otherSkill}
-            setOtherValue={setOtherSkill}
-          />
-          <ToggleGroup
-            label="Practice management software"
-            items={SOFTWARE}
-            selected={selectedSoftware}
-            setSelected={setSelectedSoftware}
-            otherValue={otherSoftware}
-            setOtherValue={setOtherSoftware}
-          />
-          <ToggleGroup
-            label="Required certificates & documents"
-            items={CERTIFICATES}
-            selected={selectedDocs}
-            setSelected={setSelectedDocs}
-            otherValue={otherDoc}
-            setOtherValue={setOtherDoc}
-            activeColour="emerald"
-          />
-
+          <ToggleGroup label="Required clinical skills" items={SKILLS} selected={selectedSkills} setSelected={setSelectedSkills} otherValue={otherSkill} setOtherValue={setOtherSkill} />
+          <ToggleGroup label="Practice management software" items={SOFTWARE} selected={selectedSoftware} setSelected={setSelectedSoftware} otherValue={otherSoftware} setOtherValue={setOtherSoftware} />
+          <ToggleGroup label="Required certificates & documents" items={CERTIFICATES} selected={selectedDocs} setSelected={setSelectedDocs} otherValue={otherDoc} setOtherValue={setOtherDoc} activeColour="emerald" />
           {selectedDocs.includes("Hospital Accreditation") && (
-            <input
-              className="w-full rounded-2xl border border-slate-200 p-3 text-sm"
-              placeholder="Which hospital? e.g. PA Hospital, Mater"
-              value={hospitalAccreditation}
-              onChange={(e) => setHospitalAccreditation(e.target.value)}
-            />
+            <input className="w-full rounded-2xl border border-slate-200 p-3 text-sm" placeholder="Which hospital? e.g. PA Hospital, Mater" value={hospitalAccreditation} onChange={(e) => setHospitalAccreditation(e.target.value)} />
           )}
-
           <div className="grid gap-3 md:grid-cols-2">
             <div className="rounded-2xl border border-slate-200 p-4">
               <div className="font-semibold">Preferred staff first</div>
               <p className="text-sm text-slate-500">Offer privately before public posting.</p>
             </div>
-            <button onClick={() => setUrgent(!urgent)}
-              className={`rounded-2xl border p-4 text-left transition ${urgent ? "border-red-200 bg-red-50 text-red-800" : "border-slate-200"}`}>
+            <button onClick={() => setUrgent(!urgent)} className={`rounded-2xl border p-4 text-left transition ${urgent ? "border-red-200 bg-red-50 text-red-800" : "border-slate-200"}`}>
               <div className="font-semibold">Urgent shift</div>
               <p className="text-sm opacity-70">Notify candidates who allow urgent alerts.</p>
             </button>
           </div>
-
           {error && <p className="text-sm text-red-600 bg-red-50 rounded-2xl p-3">{error}</p>}
-
           <Button onClick={handlePost} className={`w-full py-4 text-white ${loading ? "bg-teal-400" : "bg-teal-700"}`}>
             {loading ? "Posting..." : "Post shift"}
           </Button>
@@ -510,23 +421,20 @@ function AdminView() {
 export default function Page() {
   const [tab, setTab] = useState<Tab>("candidate");
   const [userName, setUserName] = useState<string>("");
-const [userRole, setUserRole] = useState<string>("");
+  const [userRole, setUserRole] = useState<string>("");
 
   useEffect(() => {
     async function fetchUser() {
-  const { createClient } = await import("@/lib/supabase/client");
-  const supabase = createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("full_name, email, role")
-      .eq("id", user.id)
-      .single();
-    setUserName(profile?.full_name || user.email || "");
-    setUserRole(profile?.role || "");
-  }
-}
+      const { createClient } = await import("@/lib/supabase/client");
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles").select("full_name, email, role").eq("id", user.id).single();
+        setUserName(profile?.full_name || user.email || "");
+        setUserRole(profile?.role || "");
+      }
+    }
     fetchUser();
   }, []);
 
@@ -540,31 +448,28 @@ const [userRole, setUserRole] = useState<string>("");
             {userName && <p className="text-sm font-medium text-teal-700">👋 {userName}</p>}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-  <Button onClick={() => setTab("candidate")} className={tab === "candidate" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}>Candidate</Button>
-  <Button onClick={() => setTab("clinic")} className={tab === "clinic" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}>Clinic</Button>
-  <Button onClick={() => setTab("admin")} className={tab === "admin" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}>Admin</Button>
-  {userRole === "staff" && (
-    <a href="/bookings" className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-teal-50 hover:text-teal-700 hover:border-teal-200">
-      My bookings
-    </a>
-  )}
-  {userRole === "clinic" && (
-    <a href="/shifts" className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-teal-50 hover:text-teal-700 hover:border-teal-200">
-      Posted shifts
-    </a>
-  )}
-  <button
-    onClick={async () => {
-      const { createClient } = await import("@/lib/supabase/client");
-      const supabase = createClient();
-      await supabase.auth.signOut();
-      window.location.href = "/auth/login";
-    }}
-    className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-red-50 hover:text-red-600 hover:border-red-200"
-  >
-    Sign out
-  </button>
-</div>
+            <Button onClick={() => setTab("candidate")} className={tab === "candidate" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}>Candidate</Button>
+            <Button onClick={() => setTab("clinic")} className={tab === "clinic" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}>Clinic</Button>
+            <Button onClick={() => setTab("admin")} className={tab === "admin" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}>Admin</Button>
+            {userRole === "staff" && (
+              <a href="/bookings" className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-teal-50 hover:text-teal-700 hover:border-teal-200">
+                📅 My bookings
+              </a>
+            )}
+            {userRole === "clinic" && (
+              <a href="/shifts" className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-teal-50 hover:text-teal-700 hover:border-teal-200">
+                📋 Posted shifts
+              </a>
+            )}
+            <button
+              onClick={async () => {
+                const { createClient } = await import("@/lib/supabase/client");
+                const supabase = createClient();
+                await supabase.auth.signOut();
+                window.location.href = "/auth/login";
+              }}
+              className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-red-50 hover:text-red-600 hover:border-red-200"
+            >
               Sign out
             </button>
           </div>
