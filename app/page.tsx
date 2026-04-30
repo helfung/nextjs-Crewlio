@@ -684,6 +684,29 @@ export default function Page() {
   const [tab, setTab] = useState<Tab>("candidate");
   const [userName, setUserName] = useState<string>("");
   const [userRole, setUserRole] = useState<string>("");
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedbackType, setFeedbackType] = useState<"feedback" | "bug">("feedback");
+  const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [feedbackSending, setFeedbackSending] = useState(false);
+  const [feedbackSent, setFeedbackSent] = useState(false);
+
+  async function submitFeedback() {
+    if (!feedbackMessage.trim()) return;
+    setFeedbackSending(true);
+    const { createClient } = await import("@/lib/supabase/client");
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from("feedback").insert({
+      user_id: user.id,
+      type: feedbackType,
+      message: feedbackMessage,
+    });
+    setFeedbackSent(true);
+    setFeedbackSending(false);
+    setFeedbackMessage("");
+    setTimeout(() => { setShowFeedback(false); setFeedbackSent(false); }, 2000);
+  }
 
   useEffect(() => {
     async function fetchUser() {
@@ -717,6 +740,9 @@ export default function Page() {
                 <a href="/bookings" className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-teal-50 hover:text-teal-700 hover:border-teal-200">
                   📅 Accepted shifts
                 </a>
+                <button onClick={() => setShowFeedback(true)} className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200">
+                  💬 Feedback
+                </button>
                 <a href="/profile/edit" className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-teal-50 hover:text-teal-700 hover:border-teal-200">
                   ✏️ Edit profile
                 </a>
@@ -728,6 +754,9 @@ export default function Page() {
                 <a href="/shifts" className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-teal-50 hover:text-teal-700 hover:border-teal-200">
                   📋 Posted shifts
                 </a>
+                <button onClick={() => setShowFeedback(true)} className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200">
+                  💬 Feedback
+                </button>
                 <a href="/employer/edit" className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-teal-50 hover:text-teal-700 hover:border-teal-200">
                   ✏️ Edit profile
                 </a>
@@ -760,6 +789,54 @@ export default function Page() {
         {tab === "clinic" && <ClinicView />}
         {tab === "admin" && <AdminView />}
       </div>
+
+      {showFeedback && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="w-full max-w-md rounded-3xl bg-white shadow-xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold">Send feedback</h2>
+              <button onClick={() => setShowFeedback(false)} className="text-slate-400 hover:text-slate-600 text-xl">✕</button>
+            </div>
+            {feedbackSent ? (
+              <div className="text-center py-6">
+                <div className="text-4xl mb-3">🙏</div>
+                <p className="font-semibold">Thanks for your feedback!</p>
+                <p className="text-sm text-slate-500 mt-1">We'll review it shortly.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-slate-700">Type</label>
+                  <div className="mt-2 grid grid-cols-2 gap-3">
+                    <button onClick={() => setFeedbackType("feedback")}
+                      className={"rounded-2xl border p-3 text-sm font-semibold transition " + (feedbackType === "feedback" ? "border-teal-700 bg-teal-50 text-teal-700" : "border-slate-200 text-slate-600")}>
+                      💬 Feedback
+                    </button>
+                    <button onClick={() => setFeedbackType("bug")}
+                      className={"rounded-2xl border p-3 text-sm font-semibold transition " + (feedbackType === "bug" ? "border-red-500 bg-red-50 text-red-600" : "border-slate-200 text-slate-600")}>
+                      🐛 Report a bug
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-700">Message</label>
+                  <textarea value={feedbackMessage} onChange={(e) => setFeedbackMessage(e.target.value)} rows={4}
+                    className="mt-1 w-full rounded-2xl border border-slate-200 p-3 text-sm resize-none"
+                    placeholder={feedbackType === "bug" ? "Describe what happened..." : "Share your thoughts..."} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <button onClick={() => setShowFeedback(false)}
+                    className="rounded-2xl border border-slate-200 py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
+                  <button onClick={submitFeedback} disabled={feedbackSending || !feedbackMessage.trim()}
+                    className="rounded-2xl bg-teal-700 py-3 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50">
+                    {feedbackSending ? "Sending..." : "Send"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </main>
   );
 }
