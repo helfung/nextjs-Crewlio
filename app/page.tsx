@@ -552,6 +552,9 @@ export default function Page() {
                 <Button onClick={() => setTab("candidate")} className={tab === "candidate" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}>Candidate</Button>
                 <Button onClick={() => setTab("clinic")} className={tab === "clinic" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}>Clinic</Button>
                 <Button onClick={() => setTab("admin")} className={tab === "admin" ? "bg-teal-700 text-white" : "border border-slate-200 bg-white"}>Admin</Button>
+                <a href="/admin" className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200">
+                  🔧 Admin dashboard
+                </a>
               </>
             )}
             <button
