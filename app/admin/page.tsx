@@ -39,7 +39,7 @@ export default function AdminPage() {
   const [shifts, setShifts] = useState<ShiftRow[]>([]);
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "shifts" | "users">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "shifts" | "users" | "feedback">("overview");
   const router = useRouter();
 
   useEffect(() => {
@@ -122,6 +122,13 @@ export default function AdminPage() {
         .order("created_at", { ascending: false });
       setUsers(usersData || []);
 
+      const { data: feedbackData } = await supabase
+        .from("feedback")
+        .select("id, type, message, status, created_at, user_id")
+        .order("created_at", { ascending: false })
+        .limit(20);
+      setFeedback(feedbackData || []);
+
       setLoading(false);
     }
     checkAdminAndFetch();
@@ -163,7 +170,7 @@ export default function AdminPage() {
 
         {/* Tabs */}
         <div className="flex gap-2 mb-6">
-          {(["overview", "shifts", "users"] as const).map(tab => (
+          {(["overview", "shifts", "users", "feedback"] as const).map(tab => (
             <button key={tab} onClick={() => setActiveTab(tab)}
               className={"rounded-2xl px-4 py-2 text-sm font-semibold transition capitalize " +
                 (activeTab === tab ? "bg-teal-700 text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50")}>
@@ -277,6 +284,35 @@ export default function AdminPage() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Feedback */}
+        {activeTab === "feedback" && (
+          <div className="rounded-3xl border border-slate-100 bg-white shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-slate-100">
+              <h2 className="text-xl font-bold">💬 Feedback & bug reports</h2>
+              <p className="text-sm text-slate-500 mt-1">{feedback.length} submission{feedback.length !== 1 ? "s" : ""} from users.</p>
+            </div>
+            {feedback.length === 0 ? (
+              <div className="p-12 text-center text-slate-500">No feedback yet.</div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {feedback.map(item => (
+                  <div key={item.id} className={"p-4 " + (item.type === "bug" ? "bg-red-50" : "bg-white")}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className={"rounded-full px-2 py-0.5 text-xs font-medium " + (item.type === "bug" ? "bg-red-100 text-red-700" : "bg-teal-50 text-teal-700")}>
+                        {item.type === "bug" ? "🐛 Bug report" : "💬 Feedback"}
+                      </span>
+                      <span className="text-xs text-slate-400">
+                        {new Date(item.created_at).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                    </div>
+                    <p className="text-sm text-slate-700">{item.message}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
