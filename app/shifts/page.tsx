@@ -116,7 +116,9 @@ export default function ShiftsPage() {
         const { data: profileData } = await supabase
           .from("profiles").select("email").eq("id", staffData?.user_id).single();
 
+        console.log("Notify: staffData=", staffData, "profileData=", profileData);
         if (profileData?.email) {
+          console.log("Sending notification to", profileData.email);
           await fetch("/api/notify", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
